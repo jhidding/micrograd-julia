@@ -14,6 +14,8 @@ pandoc_args += --lua-filter .entangled/scripts/annotate.lua
 pandoc_args += --lua-filter .entangled/scripts/make.lua
 pandoc_args += --citeproc
 pandoc_args += --shift-heading-level-by=-1
+pandoc_args += --metadata author="Johan Hidding (after Andrej Karpathy)" \
+               --metadata subtitle="introduction to automatic differentiation and backpropagation"
 
 pandoc_input := README.md
 pandoc_output := docs/index.html

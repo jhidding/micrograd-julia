@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Johan Hidding (after Andrej Karpathy)" />
   <title>Micrograd in Julia</title>
   <style>
     code{white-space: pre-wrap;}
@@ -85,6 +86,8 @@
 <body>
 <header id="title-block-header">
 <h1 class="title">Micrograd in Julia</h1>
+<p class="subtitle">introduction to automatic differentiation and backpropagation</p>
+<p class="author">Johan Hidding (after Andrej Karpathy)</p>
 <!--        <div id="dark-mode-toggle">
                 <p>Dark mode: <button class="dark-mode-button"
                         aria-label="Toggle dark mode"
@@ -241,15 +244,19 @@
 <span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    d1 <span class="op">=</span> d.value</span>
 <span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;%s = %f</span><span class="sc">\n</span><span class="st">&quot;</span> d.label d.value</span>
 <span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    backpropagate(d)</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;%s&#39; = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label a.grad</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;∂_%s d = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label a.grad</span>
 <span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    a.value <span class="op">=</span> <span class="fl">2.01</span></span>
 <span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    <span class="cn">e</span>.value <span class="op">=</span> a.value <span class="op">*</span> b.value</span>
 <span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    d.value <span class="op">=</span> <span class="cn">e</span>.value <span class="op">+</span> c.value</span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;numerical %s&#39; = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label ((d.value <span class="op">-</span> d1) <span class="op">/</span> <span class="fl">0.01</span>)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;numerical ∂_%s d = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label ((d.value <span class="op">-</span> d1) <span class="op">/</span> <span class="fl">0.01</span>)</span>
 <span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
 <span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
 </div>
+<p>Giving</p>
+<pre><code>d = 16.000000
+∂_a d = 3.000000
+numerical ∂_a d = 3.000000</code></pre>
 </section>
 </section>
         </div>

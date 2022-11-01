@@ -159,12 +159,20 @@ function main()
     d1 = d.value
     @printf "%s = %f\n" d.label d.value
     backpropagate(d)
-    @printf "%s' = %f\n" a.label a.grad
+    @printf "∂_%s d = %f\n" a.label a.grad
     a.value = 2.01
     e.value = a.value * b.value
     d.value = e.value + c.value
-    @printf "numerical %s' = %f\n" a.label ((d.value - d1) / 0.01)
+    @printf "numerical ∂_%s d = %f\n" a.label ((d.value - d1) / 0.01)
 end
 
 main()
+```
+
+Giving
+
+```
+d = 16.000000
+∂_a d = 3.000000
+numerical ∂_a d = 3.000000
 ```
