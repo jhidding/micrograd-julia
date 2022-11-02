@@ -190,12 +190,14 @@
 <span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        <span class="kw">return</span> <span class="cn">nothing</span></span>
 <span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
 <span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    it <span class="op">+=</span> <span class="fl">1</span></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    ((a.elems[it]<span class="op">,</span> vcat(a.elems[<span class="fl">1</span><span class="op">:</span>it]<span class="op">,</span> a.elems[it<span class="op">+</span><span class="fl">1</span><span class="op">:</span><span class="kw">end</span>]))<span class="op">,</span> it)</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    ((a.elems[it]<span class="op">,</span> vcat(a.elems[<span class="fl">1</span><span class="op">:</span>it<span class="op">-</span><span class="fl">1</span>]<span class="op">,</span> a.elems[it<span class="op">+</span><span class="fl">1</span><span class="op">:</span><span class="kw">end</span>]))<span class="op">,</span> it)</span>
 <span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
 <span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> this_and_others(v <span class="op">::</span> <span class="dt">Vector</span>{T}) <span class="kw">where</span> T</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    ThisAndOthers(v)</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.length(a <span class="op">::</span> ThisAndOthers{T}) <span class="kw">where</span> T <span class="op">=</span> length(a.elems)</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> this_and_others(v <span class="op">::</span> <span class="dt">Vector</span>{T}) <span class="kw">where</span> T</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    ThisAndOthers(v)</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 </section>
 <section id="derivatives-1" class="level2">
@@ -228,36 +230,252 @@
 <section id="first-example" class="level2">
 <h2>First example</h2>
 <div class="named-code-block">
+<p>«example-1»</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> literal(<span class="fl">2.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;a&quot;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> literal(<span class="fl">3.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;b&quot;</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>c <span class="op">=</span> literal(<span class="fl">10.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;c&quot;</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> a <span class="op">*</span> b <span class="op">+</span> c <span class="op">*</span> a <span class="op">|&gt;</span> label(<span class="st">&quot;d&quot;</span>)</span></code></pre></div>
+</div>
+<div class="named-code-block">
 <p>file:src/example1.jl</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@printf</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    a <span class="op">=</span> literal(<span class="fl">2.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;a&quot;</span>)</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    b <span class="op">=</span> literal(<span class="fl">3.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;b&quot;</span>)</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    c <span class="op">=</span> literal(<span class="fl">10.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;c&quot;</span>)</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    <span class="cn">e</span> <span class="op">=</span> a <span class="op">*</span> b <span class="op">|&gt;</span> label(<span class="st">&quot;e&quot;</span>)</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> <span class="cn">e</span> <span class="op">+</span> c <span class="op">|&gt;</span> label(<span class="st">&quot;d&quot;</span>)</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    d1 <span class="op">=</span> d.value</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;%s = %f</span><span class="sc">\n</span><span class="st">&quot;</span> d.label d.value</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    backpropagate(d)</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;∂_%s d = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label a.grad</span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    a.value <span class="op">=</span> <span class="fl">2.01</span></span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    <span class="cn">e</span>.value <span class="op">=</span> a.value <span class="op">*</span> b.value</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    d.value <span class="op">=</span> <span class="cn">e</span>.value <span class="op">+</span> c.value</span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;numerical ∂_%s d = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label ((d.value <span class="op">-</span> d1) <span class="op">/</span> <span class="fl">0.01</span>)</span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@printf</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">&lt;&lt;</span>example<span class="op">-</span><span class="fl">1</span><span class="op">&gt;&gt;</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;%s = %f</span><span class="sc">\n</span><span class="st">&quot;</span> d.label d.value</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    backpropagate(d)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;∂_%s d = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label a.grad</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
 </div>
 <p>Giving</p>
-<pre><code>d = 16.000000
-∂_a d = 3.000000
-numerical ∂_a d = 3.000000</code></pre>
+<pre><code>d = 26.000000
+∂_a d = 13.000000</code></pre>
 </section>
+</section>
+<section id="plotting-tree-in-graphviz" class="level1">
+<h1>Plotting tree in <code>graphviz</code></h1>
+<p>Julia has a module for interaction with Graphviz, but it requires input in dot language, so this module is next to useless. We can do better.</p>
+<div class="named-code-block">
+<p>«visualize»</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> visualize(</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>        v<span class="op">::</span>Value{T}<span class="op">,</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>        g<span class="op">::</span><span class="dt">Union</span>{Graph<span class="op">,</span><span class="dt">Nothing</span>}<span class="op">=</span><span class="cn">nothing</span><span class="op">,</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>        done<span class="op">::</span><span class="dt">Union</span>{<span class="dt">Set</span>{Value{T}}<span class="op">,</span><span class="dt">Nothing</span>}<span class="op">=</span><span class="cn">nothing</span>) <span class="kw">where</span> T</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> isnothing(g)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>        g <span class="op">=</span> digraph() <span class="op">|&gt;</span> add_attr(c_graph<span class="op">;</span> rankdir<span class="op">=</span><span class="st">&quot;LR&quot;</span>)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> isnothing(done)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>        done <span class="op">=</span> <span class="dt">Set</span>([v])</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    objid <span class="op">=</span> repr(hash(v))</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    g <span class="op">|&gt;</span> add_node(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> shape<span class="op">=</span><span class="st">&quot;record&quot;</span><span class="op">,</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>        label<span class="op">=</span>(<span class="pp">@sprintf</span> <span class="st">&quot;{ %s | data: %0.2f | grad: %0.2f }&quot;</span> (isnothing(v.label) ? <span class="st">&quot;&quot;</span> <span class="op">:</span> v.label) v.value v.grad))</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> (v.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span>)</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>        g <span class="op">|&gt;</span> add_node(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> label<span class="op">=</span><span class="dt">String</span>(v.operator)) <span class="op">|&gt;</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>             add_edge(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">,</span> <span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid)</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> c <span class="kw">in</span> v.children</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>        childid <span class="op">=</span> repr(hash(c))</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>        <span class="kw">if</span> <span class="op">!</span>(c <span class="kw">in</span> done)</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>            visualize(c<span class="op">,</span> g<span class="op">,</span> done)</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>        g <span class="op">|&gt;</span> add_edge(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> childid<span class="op">,</span> (v.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span> ? <span class="st">&quot;op_&quot;</span> <span class="op">:</span> <span class="st">&quot;dat_&quot;</span>) <span class="op">*</span> objid)</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>    g</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+</div>
+<div class="named-code-block">
+<p>file:src/viz_example1.jl</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@sprintf</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>include(<span class="st">&quot;Graphviz.jl&quot;</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> .Graphviz<span class="op">:</span> Graph<span class="op">,</span> digraph<span class="op">,</span> add_node<span class="op">,</span> add_edge<span class="op">,</span> add_attr<span class="op">,</span> c_graph</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>visualize<span class="op">&gt;&gt;</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">&lt;&lt;</span>example<span class="op">-</span><span class="fl">1</span><span class="op">&gt;&gt;</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    backpropagate(d)</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    print(visualize(d))</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
+</div>
+<p><img src="fig/example1.svg" class="figure" alt="" /></p>
+</section>
+<section id="appendix-graphviz-module" class="level1">
+<h1>Appendix: Graphviz module</h1>
+<p>For those interested, here’s the source for <code>Graphviz.jl</code>.</p>
+<div class="named-code-block">
+<p>file:src/Graphviz.jl</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> Graphviz</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="pp">@enum</span> GraphComponent c_graph c_node c_edge</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> component_name <span class="op">=</span> <span class="dt">IdDict</span>(</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    c_graph <span class="op">=&gt;</span> <span class="st">&quot;graph&quot;</span><span class="op">,</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    c_node <span class="op">=&gt;</span> <span class="st">&quot;node&quot;</span><span class="op">,</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    c_edge <span class="op">=&gt;</span> <span class="st">&quot;edge&quot;</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> c <span class="op">::</span> GraphComponent) <span class="op">=</span> print(io<span class="op">,</span> component_name[c])</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="pp">@enum</span> CompassPt c_n c_ne c_e c_se c_s c_sw c_w c_nw c_c c_empty</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> compass_symb <span class="op">=</span> <span class="dt">IdDict</span>(</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    c_n <span class="op">=&gt;</span> <span class="st">&quot;n&quot;</span><span class="op">,</span> c_ne <span class="op">=&gt;</span> <span class="st">&quot;ne&quot;</span><span class="op">,</span> c_e <span class="op">=&gt;</span> <span class="st">&quot;e&quot;</span><span class="op">,</span> c_se <span class="op">=&gt;</span> <span class="st">&quot;se&quot;</span><span class="op">,</span> c_s <span class="op">=&gt;</span> <span class="st">&quot;s&quot;</span><span class="op">,</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    c_sw <span class="op">=&gt;</span> <span class="st">&quot;sw&quot;</span><span class="op">,</span> c_w <span class="op">=&gt;</span> <span class="st">&quot;w&quot;</span><span class="op">,</span> c_nw <span class="op">=&gt;</span> <span class="st">&quot;nw&quot;</span><span class="op">,</span> c_c <span class="op">=&gt;</span> <span class="st">&quot;c&quot;</span><span class="op">,</span> c_empty <span class="op">=&gt;</span> <span class="st">&quot;_&quot;</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> c <span class="op">::</span> CompassPt) <span class="op">=</span> print(io<span class="op">,</span> compass_symb[c])</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a><span class="kw">abstract type</span> Statement <span class="kw">end</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Subgraph <span class="op">&lt;:</span> Statement</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    name <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>}</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>    stmt_lst <span class="op">::</span> <span class="dt">Vector</span>{Statement}</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> AList</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>    content <span class="op">::</span> <span class="dt">IdDict</span>{<span class="dt">Symbol</span><span class="op">,</span><span class="dt">String</span>}</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> alst <span class="op">::</span> AList)</span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> (k<span class="op">,</span> v) <span class="kw">in</span> pairs(alst.content)</span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> k<span class="op">,</span> <span class="st">&quot;=</span><span class="sc">\&quot;</span><span class="st">&quot;</span><span class="op">,</span> v<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">;&quot;</span>)</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> NodeId</span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>    name <span class="op">::</span> <span class="dt">String</span></span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>    port <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span><span class="dt">Nothing</span>}</span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> NodeStmt <span class="op">&lt;:</span> Statement</span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>    id <span class="op">::</span> NodeId</span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>    attr_list <span class="op">::</span> <span class="dt">Vector</span>{AList}</span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a>NodeOrSubgraph <span class="op">=</span> <span class="dt">Union</span>{NodeId<span class="op">,</span>Subgraph}</span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> n <span class="op">::</span> NodeId)</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">&quot;</span><span class="op">,</span> n.name<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">&quot;</span>)</span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> <span class="op">!</span>isnothing(n.port)</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> n.port)</span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> n <span class="op">::</span> NodeStmt)</span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> n.id)</span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> a <span class="kw">in</span> n.attr_list</span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;[&quot;</span><span class="op">,</span> a<span class="op">,</span> <span class="st">&quot;]&quot;</span>)</span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> EdgeStmt <span class="op">&lt;:</span> Statement</span>
+<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a>    is_directed <span class="op">::</span> <span class="dt">Bool</span></span>
+<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a>    from <span class="op">::</span> <span class="dt">Union</span>{NodeId<span class="op">,</span>Subgraph}</span>
+<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a>    to <span class="op">::</span> <span class="dt">Vector</span>{<span class="dt">Union</span>{NodeId<span class="op">,</span>Subgraph}}</span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>    attr_list <span class="op">::</span> <span class="dt">Vector</span>{AList}</span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> <span class="cn">e</span> <span class="op">::</span> EdgeStmt)</span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="cn">e</span>.from)</span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> <span class="cn">e</span>.to</span>
+<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="cn">e</span>.is_directed ? <span class="st">&quot;-&gt;&quot;</span> <span class="op">:</span> <span class="st">&quot;--&quot;</span><span class="op">,</span> n)</span>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> a <span class="kw">in</span> <span class="cn">e</span>.attr_list</span>
+<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;[&quot;</span><span class="op">,</span> a<span class="op">,</span> <span class="st">&quot;]&quot;</span>)</span>
+<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> AttrStmt <span class="op">&lt;:</span> Statement</span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a>    component <span class="op">::</span> GraphComponent</span>
+<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a>    attr_list <span class="op">::</span> <span class="dt">Vector</span>{AList}</span>
+<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> a <span class="op">::</span> AttrStmt)</span>
+<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> component_name[a.component])</span>
+<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> attr <span class="kw">in</span> a.attr_list</span>
+<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;[&quot;</span><span class="op">,</span> attr<span class="op">,</span> <span class="st">&quot;]&quot;</span>)</span>
+<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> IdentityStmt <span class="op">&lt;:</span> Statement</span>
+<span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a>    first <span class="op">::</span> <span class="dt">String</span></span>
+<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a>    second <span class="op">::</span> <span class="dt">String</span></span>
+<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> i <span class="op">::</span> IdentityStmt)</span>
+<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> i.first<span class="op">,</span> <span class="st">&quot;=</span><span class="sc">\&quot;</span><span class="st">&quot;</span><span class="op">,</span> i.second<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">&quot;</span>)</span>
+<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> s <span class="op">::</span> Subgraph)</span>
+<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;subgraph &quot;</span>)</span>
+<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> <span class="op">!</span>isnothing(s.name)</span>
+<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> s.name<span class="op">,</span> <span class="st">&quot; &quot;</span>)</span>
+<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;{</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> s <span class="kw">in</span> s.stmt_lst</span>
+<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;  &quot;</span><span class="op">,</span> s<span class="op">,</span> <span class="st">&quot;;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb13-111"><a href="#cb13-111" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;}</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a><span class="kw">mutable struct</span> Graph</span>
+<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a>    is_strict <span class="op">::</span> <span class="dt">Bool</span></span>
+<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a>    is_directed <span class="op">::</span> <span class="dt">Bool</span></span>
+<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a>    name <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>}</span>
+<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a>    stmt_list <span class="op">::</span> <span class="dt">Vector</span>{Statement}</span>
+<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-121"><a href="#cb13-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-122"><a href="#cb13-122" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> g <span class="op">::</span> Graph)</span>
+<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> g.is_strict ? <span class="st">&quot;strict &quot;</span> <span class="op">:</span> <span class="st">&quot;&quot;</span><span class="op">,</span></span>
+<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a>              g.is_directed ? <span class="st">&quot;digraph &quot;</span> <span class="op">:</span> <span class="st">&quot;graph &quot;</span><span class="op">,</span></span>
+<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a>              <span class="op">!</span>isnothing(g.name) ? name <span class="op">*</span> <span class="st">&quot; &quot;</span> <span class="op">:</span> <span class="st">&quot;&quot;</span><span class="op">,</span></span>
+<span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a>              <span class="st">&quot;{</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> s <span class="kw">in</span> g.stmt_list</span>
+<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;  &quot;</span><span class="op">,</span> s<span class="op">,</span> <span class="st">&quot;;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;}</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-133"><a href="#cb13-133" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> graph(name <span class="op">=</span> <span class="cn">nothing</span>)</span>
+<span id="cb13-134"><a href="#cb13-134" aria-hidden="true" tabindex="-1"></a>    Graph(<span class="ex">false</span><span class="op">,</span> <span class="ex">false</span><span class="op">,</span> name<span class="op">,</span> [])</span>
+<span id="cb13-135"><a href="#cb13-135" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-136"><a href="#cb13-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-137"><a href="#cb13-137" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> digraph(name <span class="op">=</span> <span class="cn">nothing</span>)</span>
+<span id="cb13-138"><a href="#cb13-138" aria-hidden="true" tabindex="-1"></a>    Graph(<span class="ex">false</span><span class="op">,</span> <span class="ex">true</span> <span class="op">,</span> name<span class="op">,</span> [])</span>
+<span id="cb13-139"><a href="#cb13-139" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-140"><a href="#cb13-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-141"><a href="#cb13-141" aria-hidden="true" tabindex="-1"></a>strict(g <span class="op">::</span> Graph) <span class="op">=</span> <span class="kw">begin</span> g.is_strict <span class="op">=</span> True<span class="op">;</span> g <span class="kw">end</span></span>
+<span id="cb13-142"><a href="#cb13-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-143"><a href="#cb13-143" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_node(id <span class="op">::</span> <span class="dt">String</span><span class="op">,</span> port <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>} <span class="op">=</span> <span class="cn">nothing</span><span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb13-144"><a href="#cb13-144" aria-hidden="true" tabindex="-1"></a>    g <span class="op">-&gt;</span> <span class="kw">begin</span> push<span class="op">!</span>(g.stmt_list<span class="op">,</span> NodeStmt(NodeId(id<span class="op">,</span> port)<span class="op">,</span> [AList(kwargs)]))<span class="op">;</span> g <span class="kw">end</span></span>
+<span id="cb13-145"><a href="#cb13-145" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-146"><a href="#cb13-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-147"><a href="#cb13-147" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_edge(from <span class="op">::</span> <span class="dt">String</span><span class="op">,</span> to <span class="op">::</span> <span class="dt">String</span> <span class="op">...;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb13-148"><a href="#cb13-148" aria-hidden="true" tabindex="-1"></a>    add_edge(NodeId(from<span class="op">,</span> <span class="cn">nothing</span>)<span class="op">,</span> NodeOrSubgraph[NodeId(n<span class="op">,</span> <span class="cn">nothing</span>) <span class="kw">for</span> n <span class="kw">in</span> to]<span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb13-149"><a href="#cb13-149" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-150"><a href="#cb13-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-151"><a href="#cb13-151" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_edge(from<span class="op">::</span>NodeOrSubgraph<span class="op">,</span> to<span class="op">::</span><span class="dt">Vector</span>{NodeOrSubgraph}<span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb13-152"><a href="#cb13-152" aria-hidden="true" tabindex="-1"></a>    g <span class="op">-&gt;</span> <span class="kw">begin</span> push<span class="op">!</span>(g.stmt_list<span class="op">,</span> EdgeStmt(g.is_directed<span class="op">,</span> from<span class="op">,</span> to<span class="op">,</span> [AList(kwargs)]))<span class="op">;</span> g <span class="kw">end</span></span>
+<span id="cb13-153"><a href="#cb13-153" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-154"><a href="#cb13-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-155"><a href="#cb13-155" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_attr(comp <span class="op">::</span> GraphComponent<span class="op">;</span> attrs <span class="op">...</span>)</span>
+<span id="cb13-156"><a href="#cb13-156" aria-hidden="true" tabindex="-1"></a>    g <span class="op">-&gt;</span> <span class="kw">begin</span> push<span class="op">!</span>(g.stmt_list<span class="op">,</span> AttrStmt(comp<span class="op">,</span>[AList(<span class="dt">IdDict</span>(attrs))]))<span class="op">;</span> g <span class="kw">end</span></span>
+<span id="cb13-157"><a href="#cb13-157" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb13-158"><a href="#cb13-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-159"><a href="#cb13-159" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+</div>
 </section>
         </div>
          <div class="col-3 col-s-3 menu" id="menu-container">
@@ -274,6 +492,8 @@ numerical ∂_a d = 3.000000</code></pre>
                                 <li><a href="#derivatives-1">Derivatives</a></li>
                                 <li><a href="#first-example">First example</a></li>
                                 </ul></li>
+                                <li><a href="#plotting-tree-in-graphviz">Plotting tree in <code>graphviz</code></a></li>
+                                <li><a href="#appendix-graphviz-module">Appendix: Graphviz module</a></li>
                                 </ul>
                 </nav></div>
         </div> 

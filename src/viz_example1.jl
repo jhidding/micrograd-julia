@@ -1,6 +1,8 @@
-# ~\~ language=Julia filename=src/example1.jl
-# ~\~ begin <<README.md|src/example1.jl>>[init]
-using Printf: @printf
+# ~\~ language=Julia filename=src/viz_example1.jl
+# ~\~ begin <<README.md|src/viz_example1.jl>>[init]
+using Printf: @sprintf
+include("Graphviz.jl")
+using .Graphviz: Graph, digraph, add_node, add_edge, add_attr, c_graph
 
 # ~\~ begin <<README.md|value>>[init]
 mutable struct Value{T}
@@ -75,6 +77,34 @@ function backpropagate(v :: Value{T}) where T
     end
 end
 # ~\~ end
+# ~\~ begin <<README.md|visualize>>[init]
+function visualize(
+        v::Value{T},
+        g::Union{Graph,Nothing}=nothing,
+        done::Union{Set{Value{T}},Nothing}=nothing) where T
+    if isnothing(g)
+        g = digraph() |> add_attr(c_graph; rankdir="LR")
+    end
+    if isnothing(done)
+        done = Set([v])
+    end
+    objid = repr(hash(v))
+    g |> add_node("dat_" * objid; shape="record",
+        label=(@sprintf "{ %s | data: %0.2f | grad: %0.2f }" (isnothing(v.label) ? "" : v.label) v.value v.grad))
+    if (v.operator !== :const)
+        g |> add_node("op_" * objid; label=String(v.operator)) |>
+             add_edge("op_" * objid, "dat_" * objid)
+    end
+    for c in v.children
+        childid = repr(hash(c))
+        if !(c in done)
+            visualize(c, g, done)
+        end
+        g |> add_edge("dat_" * childid, (v.operator !== :const ? "op_" : "dat_") * objid)
+    end
+    g
+end
+# ~\~ end
 
 function main()
     # ~\~ begin <<README.md|example-1>>[init]
@@ -83,9 +113,8 @@ function main()
     c = literal(10.0) |> label("c")
     d = a * b + c * a |> label("d")
     # ~\~ end
-    @printf "%s = %f\n" d.label d.value
     backpropagate(d)
-    @printf "∂_%s d = %f\n" a.label a.grad
+    print(visualize(d))
 end
 
 main()
