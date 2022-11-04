@@ -42,6 +42,25 @@ In the last step, using that in the limit $u(x+h) = u(x)$. In short,
 $$(uv)' = u'v + uv'.$$
 :::
 
+### Chain rule
+Now we have a function $f = u \circ v$, meaning
+
+$$f(x) = u(v(x)).$$
+
+Then, writing out the definition and again replacing $v(x+h)$, we recover the definition of the derivative of $u$, evaluated at $y=v(x)$, if we multiply by $v'(x)$ on both sides of the fraction.
+
+$$\begin{align}f'(x) &= \lim_{h \to 0} {u(v(x+h)) - u(v(x)) \over h}\\
+                     &= \lim_{h \to 0} {u(v(x) + hv'(x)) - u(v(x)) \over h}\\
+                     &= \lim_{h \to 0} {(u(v(x) + hv'(x)) - u(v(x)))v'(x) \over hv'(x)}\\
+                     &= \lim_{h \to 0} {u(y + \tilde{h}) - u(y) \over \tilde{h}} v'(x)\\
+                     &= u'(v(x)) v'(x).\end{align}$$
+
+In short,
+
+:::result
+$$(u \circ v)' = (u' \circ v) v'$$
+:::
+
 Ok, with that out of the way, we can implement the first tiny version of an automatic differentating back propagation.
 
 ## Computation
@@ -89,29 +108,12 @@ end
 I supposed that, from some generality concerns, we could have combinators with more than two children. In that case, we'd like to iterate over each child, together with all their siblings (excluding the child). This is why I made an iterator that does just that `this_and_others`. Given a `Vector{T}` it yields pairs of an element and a vector containing the other elements.
 
 ``` {.julia #this-and-others}
-struct ThisAndOthers{T}
-    elems :: Vector{T}
-end
-
-function Base.iterate(a :: ThisAndOthers{T}) where T
-    if isempty(a.elems)
-        return nothing
-    end
-    ((a.elems[1], a.elems[2:end]), 1)
-end
-
-function Base.iterate(a :: ThisAndOthers{T}, it) where T
-    if length(a.elems) == it
-        return nothing
-    end
-    it += 1
-    ((a.elems[it], vcat(a.elems[1:it-1], a.elems[it+1:end])), it)
-end
-
-Base.length(a :: ThisAndOthers{T}) where T = length(a.elems)
-
 function this_and_others(v :: Vector{T}) where T
-    ThisAndOthers(v)
+    Channel() do chan
+        for (idx, x) in enumerate(v)
+            put!(chan, (x, [v[1:idx-1];v[idx+1:end]]))
+        end
+    end
 end
 ```
 
@@ -120,8 +122,9 @@ We previously derived the sum and product rules for differentiation. When writte
 
 ``` {.julia #backpropagate}
 const derivatives = IdDict(
-    :* => (grad, others) -> reduce(*, others; init = grad),
-    :+ => (grad, _) -> grad
+    :* => (_, others) -> reduce(*, others),
+    :+ => (_, _) -> 1.0,
+    <<derivatives>>
 )
 ```
 
@@ -130,13 +133,10 @@ Now, it is a matter of walking the evaluation tree backward. I use a stack, push
 ``` {.julia #backpropagate}
 function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
-    stack = [v]
-    while !isempty(stack)
-        local v = pop!(stack)
-        for (c, others) in this_and_others(v.children)
-            c.grad += derivatives[v.operator](v.grad, map(x -> x.value, others))
+    for n in topo_sort(v)
+        for (c, others) in this_and_others(n.children)
+            c.grad += n.grad * derivatives[n.operator](c.value, map(x -> x.value, others))
         end
-        append!(stack, v.children)
     end
 end
 ```
@@ -157,6 +157,7 @@ using Printf: @printf
 
 <<value>>
 <<this-and-others>>
+<<topo-sort>>
 <<backpropagate>>
 
 function main()
@@ -164,6 +165,7 @@ function main()
     @printf "%s = %f\n" d.label d.value
     backpropagate(d)
     @printf "∂_%s d = %f\n" a.label a.grad
+    print(collect(topo_sort(d)) .|> x -> x.label)
 end
 
 main()
@@ -179,14 +181,13 @@ d = 26.000000
 ## Plotting tree in `graphviz`
 Julia has a module for interaction with Graphviz, but it requires input in dot language, so this module is next to useless. We can do better.
 
-
 ``` {.julia #visualize}
 function visualize(
         v::Value{T},
         g::Union{Graph,Nothing}=nothing,
         done::Union{Set{Value{T}},Nothing}=nothing) where T
     if isnothing(g)
-        g = digraph() |> add_attr(c_graph; rankdir="LR")
+        g = digraph(; rankdir="LR")
     end
     if isnothing(done)
         done = Set([v])
@@ -209,13 +210,14 @@ function visualize(
 end
 ```
 
-``` {.julia file=src/viz_example1.jl}
+``` {.julia .hide file=src/viz_example1.jl}
 using Printf: @sprintf
 include("Graphviz.jl")
-using .Graphviz: Graph, digraph, add_node, add_edge, add_attr, c_graph
+using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
 <<value>>
 <<this-and-others>>
+<<topo-sort>>
 <<backpropagate>>
 <<visualize>>
 
@@ -230,6 +232,90 @@ main()
 
 ``` {.make .figure target=fig/example1.svg}
 $(target): src/viz_example1.jl
+> julia $< | dot -Tsvg > $@
+```
+
+## Topological sort
+
+``` {.julia #topo-sort}
+function topo_sort(tree, children = t -> t.children)
+    visited = [tree]
+    stack = [tree]
+    while !isempty(stack)
+        t = pop!(stack)
+        for c in children(t)
+            if c ∉ visited
+                push!(stack, c)
+                push!(visited, c)
+            end
+        end
+    end
+    visited
+end
+```
+
+## A Neuron
+The neuron takes many inputs and then computes a weighted sum over those inputs, and passes the results through an activation function:
+
+$$f(x_i) = {\rm sig} \Big[ \sum w_i x_i + b \Big].$$
+
+In this case, the activation function is some sigmoid.
+
+``` {.gnuplot .hide file=scripts/plot-sigmoid.gnuplot}
+set term svg
+set xrange [-5:5]
+set yrange [-1.1:1.2]
+set key right top opaque box
+plot tanh(x) t'tanh(x)'
+```
+
+``` {.make .figure target=fig/sigmoid.svg}
+$(target): scripts/plot-sigmoid.gnuplot
+> gnuplot $< > $@
+```
+
+``` {.julia #value}
+function Base.tanh(v::Value{T}) where T
+    Value{T}(tanh(v.value), zero(T), [v], :tanh, nothing)
+end
+```
+
+``` {.julia #derivatives}
+:tanh => (value, _) -> Base.Math.sech(value)^2
+```
+
+``` {.julia #example-2}
+x1 = literal(2.0) |> label("x1")
+x2 = literal(0.0) |> label("x2")
+w1 = literal(-3.0) |> label("w1")
+w2 = literal(1.0) |> label("w2")
+b = literal(6.8813735870195432) |> label("b")
+n = x1*w1 + x2*w2 + b |> label("n")
+o = tanh(n) |> label("out")
+backpropagate(o)
+```
+
+``` {.julia .hide file=src/viz_example2.jl}
+using Printf: @sprintf
+include("Graphviz.jl")
+using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
+
+<<value>>
+<<this-and-others>>
+<<topo-sort>>
+<<backpropagate>>
+<<visualize>>
+
+function main()
+    <<example-2>>
+    print(visualize(o))
+end
+
+main()
+```
+
+``` {.make .figure target=fig/example2.svg}
+$(target): src/viz_example2.jl
 > julia $< | dot -Tsvg > $@
 ```
 
@@ -369,12 +455,12 @@ function Base.show(io :: IO, g :: Graph)
     print(io, "}\n")
 end
 
-function graph(name = nothing)
-    Graph(false, false, name, [])
+function graph(name = nothing; kwargs ...)
+    Graph(false, false, name, []) |> add_attr(c_graph; kwargs ...)
 end
 
-function digraph(name = nothing)
-    Graph(false, true , name, [])
+function digraph(name = nothing; kwargs ...)
+    Graph(false, true , name, []) |> add_attr(c_graph; kwargs ...)
 end
 
 strict(g :: Graph) = begin g.is_strict = True; g end

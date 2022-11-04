@@ -132,12 +132,12 @@ function Base.show(io :: IO, g :: Graph)
     print(io, "}\n")
 end
 
-function graph(name = nothing)
-    Graph(false, false, name, [])
+function graph(name = nothing; kwargs ...)
+    Graph(false, false, name, []) |> add_attr(c_graph; kwargs ...)
 end
 
-function digraph(name = nothing)
-    Graph(false, true , name, [])
+function digraph(name = nothing; kwargs ...)
+    Graph(false, true , name, []) |> add_attr(c_graph; kwargs ...)
 end
 
 strict(g :: Graph) = begin g.is_strict = True; g end

@@ -2,7 +2,7 @@
 # ~\~ begin <<README.md|src/viz_example1.jl>>[init]
 using Printf: @sprintf
 include("Graphviz.jl")
-using .Graphviz: Graph, digraph, add_node, add_edge, add_attr, c_graph
+using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
 # ~\~ begin <<README.md|value>>[init]
 mutable struct Value{T}
@@ -32,48 +32,52 @@ function label(l :: String)
     v -> begin v.label = l; v end
 end
 # ~\~ end
+# ~\~ begin <<README.md|value>>[4]
+function Base.tanh(v::Value{T}) where T
+    Value{T}(tanh(v.value), zero(T), [v], :tanh, nothing)
+end
+# ~\~ end
 # ~\~ begin <<README.md|this-and-others>>[init]
-struct ThisAndOthers{T}
-    elems :: Vector{T}
-end
-
-function Base.iterate(a :: ThisAndOthers{T}) where T
-    if isempty(a.elems)
-        return nothing
-    end
-    ((a.elems[1], a.elems[2:end]), 1)
-end
-
-function Base.iterate(a :: ThisAndOthers{T}, it) where T
-    if length(a.elems) == it
-        return nothing
-    end
-    it += 1
-    ((a.elems[it], vcat(a.elems[1:it-1], a.elems[it+1:end])), it)
-end
-
-Base.length(a :: ThisAndOthers{T}) where T = length(a.elems)
-
 function this_and_others(v :: Vector{T}) where T
-    ThisAndOthers(v)
+    Channel() do chan
+        for (idx, x) in enumerate(v)
+            put!(chan, (x, [v[1:idx-1];v[idx+1:end]]))
+        end
+    end
+end
+# ~\~ end
+# ~\~ begin <<README.md|topo-sort>>[init]
+function topo_sort(tree, children = t -> t.children)
+    visited = [tree]
+    stack = [tree]
+    while !isempty(stack)
+        t = pop!(stack)
+        for c in children(t)
+            if c ∉ visited
+                push!(stack, c)
+                push!(visited, c)
+            end
+        end
+    end
+    visited
 end
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[init]
 const derivatives = IdDict(
-    :* => (grad, others) -> reduce(*, others; init = grad),
-    :+ => (grad, _) -> grad
+    :* => (_, others) -> reduce(*, others),
+    :+ => (_, _) -> 1.0,
+    # ~\~ begin <<README.md|derivatives>>[init]
+    :tanh => (value, _) -> Base.Math.sech(value)^2
+    # ~\~ end
 )
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[1]
 function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
-    stack = [v]
-    while !isempty(stack)
-        local v = pop!(stack)
-        for (c, others) in this_and_others(v.children)
-            c.grad += derivatives[v.operator](v.grad, map(x -> x.value, others))
+    for n in topo_sort(v)
+        for (c, others) in this_and_others(n.children)
+            c.grad += n.grad * derivatives[n.operator](c.value, map(x -> x.value, others))
         end
-        append!(stack, v.children)
     end
 end
 # ~\~ end
@@ -83,7 +87,7 @@ function visualize(
         g::Union{Graph,Nothing}=nothing,
         done::Union{Set{Value{T}},Nothing}=nothing) where T
     if isnothing(g)
-        g = digraph() |> add_attr(c_graph; rankdir="LR")
+        g = digraph(; rankdir="LR")
     end
     if isnothing(done)
         done = Set([v])
