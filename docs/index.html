@@ -153,28 +153,33 @@
 <p>«value»</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">mutable struct</span> Value{T}</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    value <span class="op">::</span> T</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    grad <span class="op">::</span> T</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    children <span class="op">::</span> <span class="dt">Vector</span>{Value}</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    operator <span class="op">::</span> <span class="dt">Symbol</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    operator <span class="op">::</span> <span class="dt">Symbol</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    children <span class="op">::</span> <span class="dt">Vector</span>{Value{T}}</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    grad <span class="op">::</span> T</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    label <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>}</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>Value{T}(value<span class="op">::</span>T<span class="op">,</span> operator<span class="op">::</span><span class="dt">Symbol</span><span class="op">,</span> children<span class="op">::</span><span class="dt">Vector</span>{Value{T}}) <span class="kw">where</span> T <span class="op">=</span> </span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    Value(value<span class="op">,</span> operator<span class="op">,</span> children<span class="op">,</span> zero(T)<span class="op">,</span> <span class="cn">nothing</span>)</span></code></pre></div>
 </div>
 <p>Now we add methods to perform addition and multiplication on <code>Value</code>s.</p>
 <div class="named-code-block">
 <p>«value»</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.<span class="op">:+</span>(a <span class="op">::</span> Value{T}<span class="op">,</span> b <span class="op">::</span> Value{T}) <span class="kw">where</span> T</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    Value{T}(a.value <span class="op">+</span> b.value<span class="op">,</span> zero(T)<span class="op">,</span> [a<span class="op">,</span> b]<span class="op">,</span> <span class="op">:+,</span> <span class="cn">nothing</span>)</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.<span class="op">:*</span>(a <span class="op">::</span> Value{T}<span class="op">,</span> b <span class="op">::</span> Value{T}) <span class="kw">where</span> T</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    Value{T}(a.value <span class="op">*</span> b.value<span class="op">,</span> zero(T)<span class="op">,</span> [a<span class="op">,</span> b]<span class="op">,</span> <span class="op">:*,</span> <span class="cn">nothing</span>)</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    Value{T}(a.value <span class="op">+</span> b.value<span class="op">,</span> <span class="op">:+,</span> [(a.operator <span class="op">==</span> <span class="op">:+</span> ? a.children <span class="op">:</span> a)<span class="op">;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                                     (b.operator <span class="op">==</span> <span class="op">:+</span> ? b.children <span class="op">:</span> b)])</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.<span class="op">:*</span>(a <span class="op">::</span> Value{T}<span class="op">,</span> b <span class="op">::</span> Value{T}) <span class="kw">where</span> T</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    Value{T}(a.value <span class="op">*</span> b.value<span class="op">,</span> <span class="op">:*,</span> [(a.operator <span class="op">==</span> <span class="op">:*</span> ? a.children <span class="op">:</span> a)<span class="op">;</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>                                     (b.operator <span class="op">==</span> <span class="op">:*</span> ? b.children <span class="op">:</span> b)])</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 <p>To create a literal value, say an input:</p>
 <div class="named-code-block">
 <p>«value»</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> literal(value <span class="op">::</span> T) <span class="kw">where</span> T</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    Value{T}(value<span class="op">,</span> zero(T)<span class="op">,</span> []<span class="op">,</span> <span class="op">:</span><span class="kw">const</span><span class="op">,</span> <span class="cn">nothing</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    Value{T}(value<span class="op">,</span> <span class="op">:</span><span class="kw">const</span><span class="op">,</span> Value{T}[])</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 <p>To add a label to a value, we’ll have a nice <code>|&gt; label("x")</code> syntax.</p>
@@ -184,18 +189,39 @@
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    v <span class="op">-&gt;</span> <span class="kw">begin</span> v.label <span class="op">=</span> l<span class="op">;</span> v <span class="kw">end</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
+<section id="topological-sort" class="level2">
+<h2>Topological sort</h2>
+<p>Computing with <code>Value</code>s will generate, along with a result a dependency graph that shows exactly how we arrived at the result. We will be walking this graph up and down, which is why it is a usefull thing to have a function that iterates all nodes in <em>topological order</em>.</p>
+<p>Topological order meaning: assign a number to each node, starting with the root node (being the final operation). We assign to its children a number one greater than the parent. If a child has multiple parents we should take the largest value. If we then evaluate the nodes from highest number down to the root, we are sure that at every stage all the necessary dependencies are already computed.</p>
+<p>Karpathy glosses over the definition of this function. A naive implementation (like I started out with) will make the mistake of putting nodes in the wrong order. Karpathy shows a recursive algorithm. An alternative is a marking approach, where we do not add a node until all outgoing edges have been accounted for. This however, also requires us to keep track of outgoing nodes. For the moment, the recursive algorithm will do.</p>
+<div class="named-code-block">
+<p>«topo-sort»</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> topo_sort(node<span class="op">,</span> children <span class="op">=</span> n <span class="op">-&gt;</span> n.children<span class="op">,</span> visited <span class="op">=</span> <span class="cn">nothing</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    visited <span class="op">=</span> isnothing(visited) ? [] <span class="op">:</span> visited</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Channel</span>() <span class="kw">do</span> chan</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">if</span> node ∉ visited</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>            push<span class="op">!</span>(visited<span class="op">,</span> node)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>            <span class="kw">for</span> c <span class="kw">in</span> children(node)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>                foreach(n<span class="op">-&gt;</span>put<span class="op">!</span>(chan<span class="op">,</span> n)<span class="op">,</span> topo_sort(c<span class="op">,</span> children<span class="op">,</span> visited))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>            <span class="kw">end</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>            put<span class="op">!</span>(chan<span class="op">,</span> node)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+</div>
+</section>
 <section id="special-iterator-this_and_others" class="level2">
 <h2>Special iterator: <code>this_and_others</code></h2>
 <p>I supposed that, from some generality concerns, we could have combinators with more than two children. In that case, we’d like to iterate over each child, together with all their siblings (excluding the child). This is why I made an iterator that does just that <code>this_and_others</code>. Given a <code>Vector{T}</code> it yields pairs of an element and a vector containing the other elements.</p>
 <div class="named-code-block">
 <p>«this-and-others»</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> this_and_others(v <span class="op">::</span> <span class="dt">Vector</span>{T}) <span class="kw">where</span> T</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Channel</span>() <span class="kw">do</span> chan</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> (idx<span class="op">,</span> x) <span class="kw">in</span> enumerate(v)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>            put<span class="op">!</span>(chan<span class="op">,</span> (x<span class="op">,</span> [v[<span class="fl">1</span><span class="op">:</span>idx<span class="op">-</span><span class="fl">1</span>]<span class="op">;</span>v[idx<span class="op">+</span><span class="fl">1</span><span class="op">:</span><span class="kw">end</span>]]))</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> this_and_others(v <span class="op">::</span> <span class="dt">Vector</span>{T}) <span class="kw">where</span> T</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Channel</span>() <span class="kw">do</span> chan</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> (idx<span class="op">,</span> x) <span class="kw">in</span> enumerate(v)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>            put<span class="op">!</span>(chan<span class="op">,</span> (x<span class="op">,</span> [v[<span class="fl">1</span><span class="op">:</span>idx<span class="op">-</span><span class="fl">1</span>]<span class="op">;</span>v[idx<span class="op">+</span><span class="fl">1</span><span class="op">:</span><span class="kw">end</span>]]))</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 </section>
 <section id="derivatives-1" class="level2">
@@ -203,112 +229,84 @@
 <p>We previously derived the sum and product rules for differentiation. When written in this form, they become rather obvious. What was all the fuss about?</p>
 <div class="named-code-block">
 <p>«backpropagate»</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> derivatives <span class="op">=</span> <span class="dt">IdDict</span>(</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="op">:*</span> <span class="op">=&gt;</span> (_<span class="op">,</span> others) <span class="op">-&gt;</span> reduce(<span class="op">*,</span> others)<span class="op">,</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">:+</span> <span class="op">=&gt;</span> (_<span class="op">,</span> _) <span class="op">-&gt;</span> <span class="fl">1.0</span><span class="op">,</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">&lt;&lt;</span>derivatives<span class="op">&gt;&gt;</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> derivatives <span class="op">=</span> <span class="dt">IdDict</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="op">:*</span> <span class="op">=&gt;</span> (_<span class="op">,</span> others) <span class="op">-&gt;</span> reduce(<span class="op">*,</span> others)<span class="op">,</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">:+</span> <span class="op">=&gt;</span> (_<span class="op">,</span> _) <span class="op">-&gt;</span> <span class="fl">1.0</span><span class="op">,</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">&lt;&lt;</span>derivatives<span class="op">&gt;&gt;</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
 </div>
-<p>Now, it is a matter of walking the evaluation tree backward. I use a stack, pushing children and popping them off, until no children remain. This is the stuff of nightmares.</p>
+<p>Now, it is a matter of walking the evaluation tree backward. Here we find the <code>topo_sort</code> routine to be useful.</p>
 <div class="named-code-block">
 <p>«backpropagate»</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> backpropagate(v <span class="op">::</span> Value{T}) <span class="kw">where</span> T</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    v.grad <span class="op">=</span> one(T)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> topo_sort(v)</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> (c<span class="op">,</span> others) <span class="kw">in</span> this_and_others(n.children)</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>            c.grad <span class="op">+=</span> n.grad <span class="op">*</span> derivatives[n.operator](c.value<span class="op">,</span> map(x <span class="op">-&gt;</span> x.value<span class="op">,</span> others))</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> backpropagate(v <span class="op">::</span> Value{T}) <span class="kw">where</span> T</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    v.grad <span class="op">=</span> one(T)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> <span class="bu">Iterators</span>.reverse(collect(topo_sort(v)))</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> (c<span class="op">,</span> others) <span class="kw">in</span> this_and_others(n.children)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>            c.grad <span class="op">+=</span> n.grad <span class="op">*</span> derivatives[n.operator](c.value<span class="op">,</span> map(x <span class="op">-&gt;</span> x.value<span class="op">,</span> others))</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 <p>Note, that a value may be used in several subexpressions, creating a diamond dependency diagram. In such a case, we want to add all contributions from different branches. This is why we find <code>c.grad += ...</code> there.</p>
 </section>
-<section id="first-example" class="level2">
-<h2>First example</h2>
+</section>
+<section id="first-example" class="level1">
+<h1>First example</h1>
 <div class="named-code-block">
 <p>«example-1»</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> literal(<span class="fl">2.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;a&quot;</span>)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> literal(<span class="fl">3.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;b&quot;</span>)</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>c <span class="op">=</span> literal(<span class="fl">10.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;c&quot;</span>)</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> a <span class="op">*</span> b <span class="op">+</span> c <span class="op">*</span> a <span class="op">|&gt;</span> label(<span class="st">&quot;d&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> literal(<span class="fl">2.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;a&quot;</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> literal(<span class="fl">3.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;b&quot;</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>c <span class="op">=</span> literal(<span class="fl">10.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;c&quot;</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> a <span class="op">*</span> b <span class="op">+</span> c <span class="op">*</span> a <span class="op">|&gt;</span> label(<span class="st">&quot;d&quot;</span>)</span></code></pre></div>
 </div>
 <div class="named-code-block">
 <p>file:src/example1.jl</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@printf</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>topo<span class="op">-</span>sort<span class="op">&gt;&gt;</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">&lt;&lt;</span>example<span class="op">-</span><span class="fl">1</span><span class="op">&gt;&gt;</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;%s = %f</span><span class="sc">\n</span><span class="st">&quot;</span> d.label d.value</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    backpropagate(d)</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;∂_%s d = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label a.grad</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    print(collect(topo_sort(d)) .<span class="op">|&gt;</span> x <span class="op">-&gt;</span> x.label)</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@printf</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>topo<span class="op">-</span>sort<span class="op">&gt;&gt;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">&lt;&lt;</span>example<span class="op">-</span><span class="fl">1</span><span class="op">&gt;&gt;</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;%s = %f</span><span class="sc">\n</span><span class="st">&quot;</span> d.label d.value</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    backpropagate(d)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;∂_%s d = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label a.grad</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    print(collect(topo_sort(d)) .<span class="op">|&gt;</span> x <span class="op">-&gt;</span> x.label)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
 </div>
 <p>Giving</p>
 <pre><code>d = 26.000000
 ∂_a d = 13.000000</code></pre>
-</section>
 </section>
 <section id="plotting-tree-in-graphviz" class="level1">
 <h1>Plotting tree in <code>graphviz</code></h1>
 <p>Julia has a module for interaction with Graphviz, but it requires input in dot language, so this module is next to useless. We can do better.</p>
 <div class="named-code-block">
 <p>«visualize»</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> visualize(</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>        v<span class="op">::</span>Value{T}<span class="op">,</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>        g<span class="op">::</span><span class="dt">Union</span>{Graph<span class="op">,</span><span class="dt">Nothing</span>}<span class="op">=</span><span class="cn">nothing</span><span class="op">,</span></span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>        done<span class="op">::</span><span class="dt">Union</span>{<span class="dt">Set</span>{Value{T}}<span class="op">,</span><span class="dt">Nothing</span>}<span class="op">=</span><span class="cn">nothing</span>) <span class="kw">where</span> T</span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> isnothing(g)</span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>        g <span class="op">=</span> digraph(<span class="op">;</span> rankdir<span class="op">=</span><span class="st">&quot;LR&quot;</span>)</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> isnothing(done)</span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>        done <span class="op">=</span> <span class="dt">Set</span>([v])</span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    objid <span class="op">=</span> repr(hash(v))</span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    g <span class="op">|&gt;</span> add_node(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> shape<span class="op">=</span><span class="st">&quot;record&quot;</span><span class="op">,</span></span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>        label<span class="op">=</span>(<span class="pp">@sprintf</span> <span class="st">&quot;{ %s | data: %0.2f | grad: %0.2f }&quot;</span> (isnothing(v.label) ? <span class="st">&quot;&quot;</span> <span class="op">:</span> v.label) v.value v.grad))</span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> (v.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span>)</span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>        g <span class="op">|&gt;</span> add_node(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> label<span class="op">=</span><span class="dt">String</span>(v.operator)) <span class="op">|&gt;</span></span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>             add_edge(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">,</span> <span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid)</span>
-<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> c <span class="kw">in</span> v.children</span>
-<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>        childid <span class="op">=</span> repr(hash(c))</span>
-<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>        <span class="kw">if</span> <span class="op">!</span>(c <span class="kw">in</span> done)</span>
-<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>            visualize(c<span class="op">,</span> g<span class="op">,</span> done)</span>
-<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
-<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>        g <span class="op">|&gt;</span> add_edge(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> childid<span class="op">,</span> (v.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span> ? <span class="st">&quot;op_&quot;</span> <span class="op">:</span> <span class="st">&quot;dat_&quot;</span>) <span class="op">*</span> objid)</span>
-<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>    g</span>
-<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> visualize(v<span class="op">::</span>Value{T}) <span class="kw">where</span> T</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    g <span class="op">=</span> digraph(<span class="op">;</span> rankdir<span class="op">=</span><span class="st">&quot;LR&quot;</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> topo_sort(v)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>        objid <span class="op">=</span> repr(hash(n))</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>        objlabel <span class="op">=</span> (isnothing(n.label) ? <span class="st">&quot;&quot;</span> <span class="op">:</span> n.label)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>        reclabel <span class="op">=</span> <span class="pp">@sprintf</span> <span class="st">&quot;{ %s | data: %0.2f | grad: %0.2f }&quot;</span>  objlabel n.value n.grad</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>        g <span class="op">|&gt;</span> add_node(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> shape<span class="op">=</span><span class="st">&quot;record&quot;</span><span class="op">,</span> label<span class="op">=</span>reclabel)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">if</span> (n.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span>)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>            g <span class="op">|&gt;</span> add_node(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> label<span class="op">=</span><span class="dt">String</span>(n.operator)) <span class="op">|&gt;</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>                 add_edge(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">,</span> <span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> c <span class="kw">in</span> n.children</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>            childid <span class="op">=</span> repr(hash(c))</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>            g <span class="op">|&gt;</span> add_edge(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> childid<span class="op">,</span> (n.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span> ? <span class="st">&quot;op_&quot;</span> <span class="op">:</span> <span class="st">&quot;dat_&quot;</span>) <span class="op">*</span> objid)</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    g</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 <p><img src="fig/example1.svg" class="figure" alt="" /></p>
-</section>
-<section id="topological-sort" class="level1">
-<h1>Topological sort</h1>
-<div class="named-code-block">
-<p>«topo-sort»</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> topo_sort(tree<span class="op">,</span> children <span class="op">=</span> t <span class="op">-&gt;</span> t.children)</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    visited <span class="op">=</span> [tree]</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    stack <span class="op">=</span> [tree]</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">while</span> <span class="op">!</span>isempty(stack)</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>        t <span class="op">=</span> pop<span class="op">!</span>(stack)</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> c <span class="kw">in</span> children(t)</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>            <span class="kw">if</span> c ∉ visited</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>                push<span class="op">!</span>(stack<span class="op">,</span> c)</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>                push<span class="op">!</span>(visited<span class="op">,</span> c)</span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>            <span class="kw">end</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    visited</span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
-</div>
 </section>
 <section id="a-neuron" class="level1">
 <h1>A Neuron</h1>
@@ -319,7 +317,7 @@
 <div class="named-code-block">
 <p>«value»</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.tanh(v<span class="op">::</span>Value{T}) <span class="kw">where</span> T</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    Value{T}(tanh(v.value)<span class="op">,</span> zero(T)<span class="op">,</span> [v]<span class="op">,</span> <span class="op">:</span>tanh<span class="op">,</span> <span class="cn">nothing</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    Value{T}(tanh(v.value)<span class="op">,</span> <span class="op">:</span>tanh<span class="op">,</span> [v])</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 <div class="named-code-block">
@@ -517,12 +515,12 @@
                                 </ul></li>
                                 <li><a href="#computation">Computation</a>
                                 <ul>
+                                <li><a href="#topological-sort">Topological sort</a></li>
                                 <li><a href="#special-iterator-this_and_others">Special iterator: <code>this_and_others</code></a></li>
                                 <li><a href="#derivatives-1">Derivatives</a></li>
-                                <li><a href="#first-example">First example</a></li>
                                 </ul></li>
+                                <li><a href="#first-example">First example</a></li>
                                 <li><a href="#plotting-tree-in-graphviz">Plotting tree in <code>graphviz</code></a></li>
-                                <li><a href="#topological-sort">Topological sort</a></li>
                                 <li><a href="#a-neuron">A Neuron</a></li>
                                 <li><a href="#appendix-graphviz-module">Appendix: Graphviz module</a></li>
                                 </ul>

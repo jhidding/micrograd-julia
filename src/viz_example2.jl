@@ -1,30 +1,36 @@
 # ~\~ language=Julia filename=src/viz_example2.jl
 # ~\~ begin <<README.md|src/viz_example2.jl>>[init]
 using Printf: @sprintf
+using Match: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
 # ~\~ begin <<README.md|value>>[init]
 mutable struct Value{T}
     value :: T
-    grad :: T
-    children :: Vector{Value}
     operator :: Symbol
+    children :: Vector{Value{T}}
+    grad :: T
     label :: Union{String, Nothing}
 end
+
+Value{T}(value::T, operator::Symbol, children::Vector{Value{T}}) where T = 
+    Value(value, operator, children, zero(T), nothing)
 # ~\~ end
 # ~\~ begin <<README.md|value>>[1]
 function Base.:+(a :: Value{T}, b :: Value{T}) where T
-    Value{T}(a.value + b.value, zero(T), [a, b], :+, nothing)
+    Value{T}(a.value + b.value, :+, [(a.operator == :+ ? a.children : a);
+                                     (b.operator == :+ ? b.children : b)])
 end
 
 function Base.:*(a :: Value{T}, b :: Value{T}) where T
-    Value{T}(a.value * b.value, zero(T), [a, b], :*, nothing)
+    Value{T}(a.value * b.value, :*, [(a.operator == :* ? a.children : a);
+                                     (b.operator == :* ? b.children : b)])
 end
 # ~\~ end
 # ~\~ begin <<README.md|value>>[2]
 function literal(value :: T) where T
-    Value{T}(value, zero(T), [], :const, nothing)
+    Value{T}(value, :const, Value{T}[])
 end
 # ~\~ end
 # ~\~ begin <<README.md|value>>[3]
@@ -34,7 +40,7 @@ end
 # ~\~ end
 # ~\~ begin <<README.md|value>>[4]
 function Base.tanh(v::Value{T}) where T
-    Value{T}(tanh(v.value), zero(T), [v], :tanh, nothing)
+    Value{T}(tanh(v.value), :tanh, [v])
 end
 # ~\~ end
 # ~\~ begin <<README.md|this-and-others>>[init]
@@ -47,19 +53,17 @@ function this_and_others(v :: Vector{T}) where T
 end
 # ~\~ end
 # ~\~ begin <<README.md|topo-sort>>[init]
-function topo_sort(tree, children = t -> t.children)
-    visited = [tree]
-    stack = [tree]
-    while !isempty(stack)
-        t = pop!(stack)
-        for c in children(t)
-            if c ∉ visited
-                push!(stack, c)
-                push!(visited, c)
+function topo_sort(node, children = n -> n.children, visited = nothing)
+    visited = isnothing(visited) ? [] : visited
+    Channel() do chan
+        if node ∉ visited
+            push!(visited, node)
+            for c in children(node)
+                foreach(n->put!(chan, n), topo_sort(c, children, visited))
             end
+            put!(chan, node)
         end
     end
-    visited
 end
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[init]
@@ -74,7 +78,7 @@ const derivatives = IdDict(
 # ~\~ begin <<README.md|backpropagate>>[1]
 function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
-    for n in topo_sort(v)
+    for n in Iterators.reverse(collect(topo_sort(v)))
         for (c, others) in this_and_others(n.children)
             c.grad += n.grad * derivatives[n.operator](c.value, map(x -> x.value, others))
         end
@@ -82,29 +86,21 @@ function backpropagate(v :: Value{T}) where T
 end
 # ~\~ end
 # ~\~ begin <<README.md|visualize>>[init]
-function visualize(
-        v::Value{T},
-        g::Union{Graph,Nothing}=nothing,
-        done::Union{Set{Value{T}},Nothing}=nothing) where T
-    if isnothing(g)
-        g = digraph(; rankdir="LR")
-    end
-    if isnothing(done)
-        done = Set([v])
-    end
-    objid = repr(hash(v))
-    g |> add_node("dat_" * objid; shape="record",
-        label=(@sprintf "{ %s | data: %0.2f | grad: %0.2f }" (isnothing(v.label) ? "" : v.label) v.value v.grad))
-    if (v.operator !== :const)
-        g |> add_node("op_" * objid; label=String(v.operator)) |>
-             add_edge("op_" * objid, "dat_" * objid)
-    end
-    for c in v.children
-        childid = repr(hash(c))
-        if !(c in done)
-            visualize(c, g, done)
+function visualize(v::Value{T}) where T
+    g = digraph(; rankdir="LR")
+    for n in topo_sort(v)
+        objid = repr(hash(n))
+        objlabel = (isnothing(n.label) ? "" : n.label)
+        reclabel = @sprintf "{ %s | data: %0.2f | grad: %0.2f }"  objlabel n.value n.grad
+        g |> add_node("dat_" * objid; shape="record", label=reclabel)
+        if (n.operator !== :const)
+            g |> add_node("op_" * objid; label=String(n.operator)) |>
+                 add_edge("op_" * objid, "dat_" * objid)
         end
-        g |> add_edge("dat_" * childid, (v.operator !== :const ? "op_" : "dat_") * objid)
+        for c in n.children
+            childid = repr(hash(c))
+            g |> add_edge("dat_" * childid, (n.operator !== :const ? "op_" : "dat_") * objid)
+        end
     end
     g
 end

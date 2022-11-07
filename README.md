@@ -69,22 +69,27 @@ We define the a data structure that traces a computation.
 ``` {.julia #value}
 mutable struct Value{T}
     value :: T
-    grad :: T
-    children :: Vector{Value}
     operator :: Symbol
+    children :: Vector{Value{T}}
+    grad :: T
     label :: Union{String, Nothing}
 end
+
+Value{T}(value::T, operator::Symbol, children::Vector{Value{T}}) where T = 
+    Value(value, operator, children, zero(T), nothing)
 ```
 
 Now we add methods to perform addition and multiplication on `Value`s.
 
 ``` {.julia #value}
 function Base.:+(a :: Value{T}, b :: Value{T}) where T
-    Value{T}(a.value + b.value, zero(T), [a, b], :+, nothing)
+    Value{T}(a.value + b.value, :+, [(a.operator == :+ ? a.children : a);
+                                     (b.operator == :+ ? b.children : b)])
 end
 
 function Base.:*(a :: Value{T}, b :: Value{T}) where T
-    Value{T}(a.value * b.value, zero(T), [a, b], :*, nothing)
+    Value{T}(a.value * b.value, :*, [(a.operator == :* ? a.children : a);
+                                     (b.operator == :* ? b.children : b)])
 end
 ```
 
@@ -92,7 +97,7 @@ To create a literal value, say an input:
 
 ``` {.julia #value}
 function literal(value :: T) where T
-    Value{T}(value, zero(T), [], :const, nothing)
+    Value{T}(value, :const, Value{T}[])
 end
 ```
 
@@ -101,6 +106,28 @@ To add a label to a value, we'll have a nice `|> label("x")` syntax.
 ``` {.julia #value}
 function label(l :: String)
     v -> begin v.label = l; v end
+end
+```
+
+### Topological sort
+Computing with `Value`s will generate, along with a result a dependency graph that shows exactly how we arrived at the result. We will be walking this graph up and down, which is why it is a usefull thing to have a function that iterates all nodes in *topological order*.
+
+Topological order meaning: assign a number to each node, starting with the root node (being the final operation). We assign to its children a number one greater than the parent. If a child has multiple parents we should take the largest value. If we then evaluate the nodes from highest number down to the root, we are sure that at every stage all the necessary dependencies are already computed.
+
+Karpathy glosses over the definition of this function. A naive implementation (like I started out with) will make the mistake of putting nodes in the wrong order. Karpathy shows a recursive algorithm. An alternative is a marking approach, where we do not add a node until all outgoing edges have been accounted for. This however, also requires us to keep track of outgoing nodes. For the moment, the recursive algorithm will do.
+
+``` {.julia #topo-sort}
+function topo_sort(node, children = n -> n.children, visited = nothing)
+    visited = isnothing(visited) ? [] : visited
+    Channel() do chan
+        if node ∉ visited
+            push!(visited, node)
+            for c in children(node)
+                foreach(n->put!(chan, n), topo_sort(c, children, visited))
+            end
+            put!(chan, node)
+        end
+    end
 end
 ```
 
@@ -128,12 +155,12 @@ const derivatives = IdDict(
 )
 ```
 
-Now, it is a matter of walking the evaluation tree backward. I use a stack, pushing children and popping them off, until no children remain. This is the stuff of nightmares.
+Now, it is a matter of walking the evaluation tree backward. Here we find the `topo_sort` routine to be useful.
 
 ``` {.julia #backpropagate}
 function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
-    for n in topo_sort(v)
+    for n in Iterators.reverse(collect(topo_sort(v)))
         for (c, others) in this_and_others(n.children)
             c.grad += n.grad * derivatives[n.operator](c.value, map(x -> x.value, others))
         end
@@ -143,7 +170,7 @@ end
 
 Note, that a value may be used in several subexpressions, creating a diamond dependency diagram. In such a case, we want to add all contributions from different branches. This is why we find `c.grad += ...` there.
 
-### First example
+## First example
 
 ``` {.julia #example-1}
 a = literal(2.0) |> label("a")
@@ -182,29 +209,21 @@ d = 26.000000
 Julia has a module for interaction with Graphviz, but it requires input in dot language, so this module is next to useless. We can do better.
 
 ``` {.julia #visualize}
-function visualize(
-        v::Value{T},
-        g::Union{Graph,Nothing}=nothing,
-        done::Union{Set{Value{T}},Nothing}=nothing) where T
-    if isnothing(g)
-        g = digraph(; rankdir="LR")
-    end
-    if isnothing(done)
-        done = Set([v])
-    end
-    objid = repr(hash(v))
-    g |> add_node("dat_" * objid; shape="record",
-        label=(@sprintf "{ %s | data: %0.2f | grad: %0.2f }" (isnothing(v.label) ? "" : v.label) v.value v.grad))
-    if (v.operator !== :const)
-        g |> add_node("op_" * objid; label=String(v.operator)) |>
-             add_edge("op_" * objid, "dat_" * objid)
-    end
-    for c in v.children
-        childid = repr(hash(c))
-        if !(c in done)
-            visualize(c, g, done)
+function visualize(v::Value{T}) where T
+    g = digraph(; rankdir="LR")
+    for n in topo_sort(v)
+        objid = repr(hash(n))
+        objlabel = (isnothing(n.label) ? "" : n.label)
+        reclabel = @sprintf "{ %s | data: %0.2f | grad: %0.2f }"  objlabel n.value n.grad
+        g |> add_node("dat_" * objid; shape="record", label=reclabel)
+        if (n.operator !== :const)
+            g |> add_node("op_" * objid; label=String(n.operator)) |>
+                 add_edge("op_" * objid, "dat_" * objid)
         end
-        g |> add_edge("dat_" * childid, (v.operator !== :const ? "op_" : "dat_") * objid)
+        for c in n.children
+            childid = repr(hash(c))
+            g |> add_edge("dat_" * childid, (n.operator !== :const ? "op_" : "dat_") * objid)
+        end
     end
     g
 end
@@ -235,25 +254,6 @@ $(target): src/viz_example1.jl
 > julia $< | dot -Tsvg > $@
 ```
 
-## Topological sort
-
-``` {.julia #topo-sort}
-function topo_sort(tree, children = t -> t.children)
-    visited = [tree]
-    stack = [tree]
-    while !isempty(stack)
-        t = pop!(stack)
-        for c in children(t)
-            if c ∉ visited
-                push!(stack, c)
-                push!(visited, c)
-            end
-        end
-    end
-    visited
-end
-```
-
 ## A Neuron
 The neuron takes many inputs and then computes a weighted sum over those inputs, and passes the results through an activation function:
 
@@ -276,7 +276,7 @@ $(target): scripts/plot-sigmoid.gnuplot
 
 ``` {.julia #value}
 function Base.tanh(v::Value{T}) where T
-    Value{T}(tanh(v.value), zero(T), [v], :tanh, nothing)
+    Value{T}(tanh(v.value), :tanh, [v])
 end
 ```
 
@@ -297,6 +297,7 @@ backpropagate(o)
 
 ``` {.julia .hide file=src/viz_example2.jl}
 using Printf: @sprintf
+using Match: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 

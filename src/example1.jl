@@ -5,24 +5,29 @@ using Printf: @printf
 # ~\~ begin <<README.md|value>>[init]
 mutable struct Value{T}
     value :: T
-    grad :: T
-    children :: Vector{Value}
     operator :: Symbol
+    children :: Vector{Value{T}}
+    grad :: T
     label :: Union{String, Nothing}
 end
+
+Value{T}(value::T, operator::Symbol, children::Vector{Value{T}}) where T = 
+    Value(value, operator, children, zero(T), nothing)
 # ~\~ end
 # ~\~ begin <<README.md|value>>[1]
 function Base.:+(a :: Value{T}, b :: Value{T}) where T
-    Value{T}(a.value + b.value, zero(T), [a, b], :+, nothing)
+    Value{T}(a.value + b.value, :+, [(a.operator == :+ ? a.children : a);
+                                     (b.operator == :+ ? b.children : b)])
 end
 
 function Base.:*(a :: Value{T}, b :: Value{T}) where T
-    Value{T}(a.value * b.value, zero(T), [a, b], :*, nothing)
+    Value{T}(a.value * b.value, :*, [(a.operator == :* ? a.children : a);
+                                     (b.operator == :* ? b.children : b)])
 end
 # ~\~ end
 # ~\~ begin <<README.md|value>>[2]
 function literal(value :: T) where T
-    Value{T}(value, zero(T), [], :const, nothing)
+    Value{T}(value, :const, Value{T}[])
 end
 # ~\~ end
 # ~\~ begin <<README.md|value>>[3]
@@ -32,7 +37,7 @@ end
 # ~\~ end
 # ~\~ begin <<README.md|value>>[4]
 function Base.tanh(v::Value{T}) where T
-    Value{T}(tanh(v.value), zero(T), [v], :tanh, nothing)
+    Value{T}(tanh(v.value), :tanh, [v])
 end
 # ~\~ end
 # ~\~ begin <<README.md|this-and-others>>[init]
@@ -45,19 +50,17 @@ function this_and_others(v :: Vector{T}) where T
 end
 # ~\~ end
 # ~\~ begin <<README.md|topo-sort>>[init]
-function topo_sort(tree, children = t -> t.children)
-    visited = [tree]
-    stack = [tree]
-    while !isempty(stack)
-        t = pop!(stack)
-        for c in children(t)
-            if c ∉ visited
-                push!(stack, c)
-                push!(visited, c)
+function topo_sort(node, children = n -> n.children, visited = nothing)
+    visited = isnothing(visited) ? [] : visited
+    Channel() do chan
+        if node ∉ visited
+            push!(visited, node)
+            for c in children(node)
+                foreach(n->put!(chan, n), topo_sort(c, children, visited))
             end
+            put!(chan, node)
         end
     end
-    visited
 end
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[init]
@@ -72,7 +75,7 @@ const derivatives = IdDict(
 # ~\~ begin <<README.md|backpropagate>>[1]
 function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
-    for n in topo_sort(v)
+    for n in Iterators.reverse(collect(topo_sort(v)))
         for (c, others) in this_and_others(n.children)
             c.grad += n.grad * derivatives[n.operator](c.value, map(x -> x.value, others))
         end
