@@ -61,7 +61,16 @@ In short,
 $$(u \circ v)' = (u' \circ v) v'$$
 :::
 
-Ok, with that out of the way, we can implement the first tiny version of an automatic differentating back propagation.
+Wikipedia gives us another nice proof, based on a different definition of differentiation. We say a function $f$ is differentiable in $a$ if there exists a function $q$ such that
+
+$$f(x) - f(a) = q(x)(x - a),$$
+
+and $f'(a) = q(a)$. Then, given that $f = u \circ v$,
+
+$$\begin{align}u(v(x)) - u(v(a)) &= q(v(x))(v(x) - v(a))\\
+        &= q(v(x))r(x)(x - a),\end{align}$$
+
+Meaning that $f'(a) = q(v(a))r(a)$, where $q(v(a)) = u'(v(a))$ and $r(a) = v'(a)$. Ok, with that out of the way, we can implement the first tiny version of an automatic differentating back propagation.
 
 ## Computation
 We define the a data structure that traces a computation.
@@ -79,7 +88,7 @@ Value{T}(value::T, operator::Symbol, children::Vector{Value{T}}) where T =
     Value(value, operator, children, zero(T), nothing)
 ```
 
-Now we add methods to perform addition and multiplication on `Value`s.
+Now we add methods to perform addition and multiplication on `Value`s. These implementations make sure that sum-nodes are joined into larger sum-nodes, likewise with product-nodes.
 
 ``` {.julia #value}
 function Base.:+(a :: Value{T}, b :: Value{T}) where T
@@ -281,7 +290,7 @@ end
 ```
 
 ``` {.julia #derivatives}
-:tanh => (value, _) -> Base.Math.sech(value)^2
+:tanh => (value, _) -> Base.Math.sech(value)^2,
 ```
 
 ``` {.julia #example-2}
@@ -317,6 +326,109 @@ main()
 
 ``` {.make .figure target=fig/example2.svg}
 $(target): src/viz_example2.jl
+> julia $< | dot -Tsvg > $@
+```
+
+## Multi-path dependencies
+
+``` {.julia #example-3}
+a = literal(1.0) |> label("a")
+b = a + a |> label("b")
+backpropagate(b)
+```
+
+``` {.julia .hide file=src/viz_example3.jl}
+using Printf: @sprintf
+include("Graphviz.jl")
+using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
+
+<<value>>
+<<this-and-others>>
+<<topo-sort>>
+<<backpropagate>>
+<<visualize>>
+
+function main()
+    <<example-3>>
+    print(visualize(b))
+end
+
+main()
+```
+
+``` {.make .figure target=fig/example3.svg}
+$(target): src/viz_example3.jl
+> julia $< | dot -Tsvg > $@
+```
+
+## More derivatives
+We want more derivatives!
+
+``` {.julia #derivatives}
+:inv => (x, _) -> -1/x^2,
+:log => (x, _) -> 1/x,
+:exp => (x, _) -> exp(x),
+:negate => (_, _) -> -1.0,
+```
+
+Now we can add more operators.
+
+``` {.julia #value}
+function Base.convert(::Type{Value{T}}, x :: T) where T
+   literal(x)
+end
+
+function vmap(f, operator::Symbol, value::Value{T}) where T
+    Value{T}(f(value.value), operator, [value])
+end
+
+Base.:*(s::U, a::Value{T}) where {T, U <: Number} = convert(Value{T}, convert(T,s)) * a
+Base.inv(a::Value{T}) where T = vmap(inv, :inv, a)
+Base.:/(a::Value{T}, b::Value{T}) where T = a * inv(b)
+Base.exp(a::Value{T}) where T = vmap(exp, :exp, a)
+negate(a::Value{T}) where T = vmap(-, :negate, a)
+Base.:-(a::Value{T}) where T = negate(a)
+Base.:-(a::Value{T}, b::Value{T}) where T = a + negate(b)
+Base.:-(a::Value{T}, b::U) where {T, U <: Number} = a - literal(convert(T,b))
+Base.:+(a::Value{T}, b::U) where {T, U <: Number} = a + literal(convert(T,b))
+```
+
+Now we could say $\tanh x = (\exp(2x) - 1) / (\exp(2x) + 1)$
+
+``` {.julia #example-4}
+mytanh(x) = begin y = exp(2*x); (y - 1) / (y + 1) end
+x1 = literal(2.0) |> label("x1")
+x2 = literal(0.0) |> label("x2")
+w1 = literal(-3.0) |> label("w1")
+w2 = literal(1.0) |> label("w2")
+b = literal(6.8813735870195432) |> label("b")
+n = x1*w1 + x2*w2 + b |> label("n")
+o = mytanh(n) |> label("out")
+backpropagate(o)
+```
+
+``` {.julia .hide file=src/viz_example4.jl}
+using Printf: @sprintf
+using Match: @match
+include("Graphviz.jl")
+using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
+
+<<value>>
+<<this-and-others>>
+<<topo-sort>>
+<<backpropagate>>
+<<visualize>>
+
+function main()
+    <<example-4>>
+    print(visualize(o))
+end
+
+main()
+```
+
+``` {.make .figure target=fig/example4.svg}
+$(target): src/viz_example4.jl
 > julia $< | dot -Tsvg > $@
 ```
 

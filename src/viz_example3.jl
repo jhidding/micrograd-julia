@@ -1,5 +1,5 @@
-# ~\~ language=Julia filename=src/viz_example1.jl
-# ~\~ begin <<README.md|src/viz_example1.jl>>[init]
+# ~\~ language=Julia filename=src/viz_example3.jl
+# ~\~ begin <<README.md|src/viz_example3.jl>>[init]
 using Printf: @sprintf
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
@@ -131,14 +131,12 @@ end
 # ~\~ end
 
 function main()
-    # ~\~ begin <<README.md|example-1>>[init]
-    a = literal(2.0) |> label("a")
-    b = literal(3.0) |> label("b")
-    c = literal(10.0) |> label("c")
-    d = a * b + c * a |> label("d")
+    # ~\~ begin <<README.md|example-3>>[init]
+    a = literal(1.0) |> label("a")
+    b = a + a |> label("b")
+    backpropagate(b)
     # ~\~ end
-    backpropagate(d)
-    print(visualize(d))
+    print(visualize(b))
 end
 
 main()

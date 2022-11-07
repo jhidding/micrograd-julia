@@ -43,6 +43,25 @@ function Base.tanh(v::Value{T}) where T
     Value{T}(tanh(v.value), :tanh, [v])
 end
 # ~\~ end
+# ~\~ begin <<README.md|value>>[5]
+function Base.convert(::Type{Value{T}}, x :: T) where T
+   literal(x)
+end
+
+function vmap(f, operator::Symbol, value::Value{T}) where T
+    Value{T}(f(value.value), operator, [value])
+end
+
+Base.:*(s::U, a::Value{T}) where {T, U <: Number} = convert(Value{T}, convert(T,s)) * a
+Base.inv(a::Value{T}) where T = vmap(inv, :inv, a)
+Base.:/(a::Value{T}, b::Value{T}) where T = a * inv(b)
+Base.exp(a::Value{T}) where T = vmap(exp, :exp, a)
+negate(a::Value{T}) where T = vmap(-, :negate, a)
+Base.:-(a::Value{T}) where T = negate(a)
+Base.:-(a::Value{T}, b::Value{T}) where T = a + negate(b)
+Base.:-(a::Value{T}, b::U) where {T, U <: Number} = a - literal(convert(T,b))
+Base.:+(a::Value{T}, b::U) where {T, U <: Number} = a + literal(convert(T,b))
+# ~\~ end
 # ~\~ begin <<README.md|this-and-others>>[init]
 function this_and_others(v :: Vector{T}) where T
     Channel() do chan
@@ -71,7 +90,13 @@ const derivatives = IdDict(
     :* => (_, others) -> reduce(*, others),
     :+ => (_, _) -> 1.0,
     # ~\~ begin <<README.md|derivatives>>[init]
-    :tanh => (value, _) -> Base.Math.sech(value)^2
+    :tanh => (value, _) -> Base.Math.sech(value)^2,
+    # ~\~ end
+    # ~\~ begin <<README.md|derivatives>>[1]
+    :inv => (x, _) -> -1/x^2,
+    :log => (x, _) -> 1/x,
+    :exp => (x, _) -> exp(x),
+    :negate => (_, _) -> -1.0,
     # ~\~ end
 )
 # ~\~ end
