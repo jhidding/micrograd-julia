@@ -432,6 +432,90 @@ $(target): src/viz_example4.jl
 > julia $< | dot -Tsvg > $@
 ```
 
+## Building a neural net
+
+### Neuron
+``` {.julia #neuron}
+struct Neuron{T}
+    weights :: Vector{Value{T}}
+    bias :: Value{T}
+end
+
+Neuron{T}(n::Int) where T <: Real =
+    Neuron{T}(
+        [literal(rand() * 2 - 1) |> label("w$(i)") for i in 1:n],
+        literal(rand() * 2 - 1) |> label("bias"))
+
+function (n::Neuron{T})(x::Vector{Value{T}}) where T <: Real
+    tanh(sum(n.weights .* x; init = n.bias))
+end
+```
+
+### Layer
+``` {.julia #layer}
+struct Layer{T}
+    neurons :: Vector{Neuron{T}}
+end
+
+Layer{T}(n_in::Int, n_out::Int) where T <: Real =
+    Layer{T}([Neuron{T}(n_in) for _ in 1:n_out])
+
+function (l::Layer{T})(x::Vector{Value{T}}) where T <: Real
+    [n(x) for n in l.neurons]
+end
+```
+
+### Multi-layer perceptron
+``` {.julia #mlp}
+struct MLP{T}
+    layers :: Vector{Layer{T}}
+end
+
+pairs(it) = zip(it[1:end-1], it[2:end])
+
+MLP{T}(n_in::Int, n_out::Vector{Int}) where T <: Real =
+    MLP{T}([Layer{T}(s...) for s in pairs([n_in; n_out])])
+
+function (mlp::MLP{T})(x::Vector{Value{T}}) where T <: Real
+    for l in mlp.layers
+        x = l(x)
+    end
+    x
+end
+```
+
+``` {.julia file=src/neural_net.jl}
+using Printf: @sprintf
+include("Graphviz.jl")
+using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
+
+<<value>>
+<<this-and-others>>
+<<topo-sort>>
+<<backpropagate>>
+<<visualize>>
+
+<<neuron>>
+<<layer>>
+<<mlp>>
+
+function main()
+    f = MLP{Float64}(3, [4, 4, 1])
+    y = f([literal(1.0) |> label("in1"),
+           literal(2.0) |> label("in2"),
+           literal(4.0) |> label("in3")])[1] |> label("out")
+    backpropagate(y)
+    print(visualize(y))
+end
+
+main()
+```
+
+``` {.make .figure target=fig/mlp.svg}
+$(target): src/neural_net.jl README.md
+> julia $< | dot -Tsvg > $@
+```
+
 ## Appendix: Graphviz module
 For those interested, here's the source for `Graphviz.jl`.
 
