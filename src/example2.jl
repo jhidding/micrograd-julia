@@ -1,5 +1,5 @@
-# ~\~ language=Julia filename=src/neural_net.jl
-# ~\~ begin <<README.md|src/neural_net.jl>>[init]
+# ~\~ language=Julia filename=src/example2.jl
+# ~\~ begin <<README.md|src/example2.jl>>[init]
 using Printf: @sprintf
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
@@ -200,13 +200,43 @@ function parameters(mlp :: MLP{T}) where T
 end
 # ~\~ end
 
+function stop_after_n(n)
+    function (i, _, loss)
+        i % 10 == 0 && println("$(i:4) $(loss)")
+        i >= n
+    end
+end
+
+function learn(nn, xs, y_reference; lossfunc=errsqr_loss, stop=stop_after_n(100), step=0.05)
+    ps = parameters(nn)
+    println("Network with $(length(ps)) free parameters.")
+    i = 0
+    prev = Inf
+    while true
+        y_prediction = [nn(literal.(x))[1] for x in xs]
+        loss = lossfunc(y_prediction, y_reference)
+        if stop(i, prev, loss.value)
+            break
+        end
+        prev = loss.value
+        backpropagate(loss)
+        for p in ps
+            p.value -= p.grad * step
+            p.grad = 0
+        end
+        i += 1
+    end
+end
+
 function main()
     f = MLP{Float64}(3, [4, 4, 1])
-    y = f([literal(1.0) |> label("in1"),
-           literal(2.0) |> label("in2"),
-           literal(4.0) |> label("in3")])[1] |> label("out")
-    backpropagate(y)
-    print(visualize(y))
+    xs = [ 2.0  3.0 -1.0;
+           3.0 -1.0  0.5;
+           0.5  1.0  1.0;
+           1.0  1.0 -1.0 ] |> eachrow |> collect
+    ys = literal.([ 1.0, -1.0, -1.0, 1.0 ])
+    learn(f, xs, ys; step=0.1)
+    println([f(literal.(x))[1].value for x in xs])
 end
 
 main()

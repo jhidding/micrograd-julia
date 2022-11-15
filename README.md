@@ -78,13 +78,13 @@ We define the a data structure that traces a computation.
 ``` {.julia #value}
 mutable struct Value{T}
     value :: T
-    operator :: Symbol
+    operator :: Union{Symbol,Expr}
     children :: Vector{Value{T}}
     grad :: T
     label :: Union{String, Nothing}
 end
 
-Value{T}(value::T, operator::Symbol, children::Vector{Value{T}}) where T = 
+Value{T}(value::T, operator::Union{Expr,Symbol}, children::Vector{Value{T}}) where T = 
     Value(value, operator, children, zero(T), nothing)
 ```
 
@@ -369,6 +369,7 @@ We want more derivatives!
 :log => (x, _) -> 1/x,
 :exp => (x, _) -> exp(x),
 :negate => (_, _) -> -1.0,
+:sqr => (x, _) -> 2*x
 ```
 
 Now we can add more operators.
@@ -391,6 +392,7 @@ Base.:-(a::Value{T}) where T = negate(a)
 Base.:-(a::Value{T}, b::Value{T}) where T = a + negate(b)
 Base.:-(a::Value{T}, b::U) where {T, U <: Number} = a - literal(convert(T,b))
 Base.:+(a::Value{T}, b::U) where {T, U <: Number} = a + literal(convert(T,b))
+Base.:^(a::Value{T}, b::U) where {T, U <: Number} = Value{T}(a.value^b, :sqr, [a])
 ```
 
 Now we could say $\tanh x = (\exp(2x) - 1) / (\exp(2x) + 1)$
@@ -482,6 +484,14 @@ function (mlp::MLP{T})(x::Vector{Value{T}}) where T <: Real
     end
     x
 end
+
+function (mlp::MLP{T})(x::Vector{T}) where T <: Real
+    mlp(literal.(x))
+end
+
+function errsqr_loss(y_ref, y)
+    sum((y_ref .- y).^2)
+end
 ```
 
 ``` {.julia file=src/neural_net.jl}
@@ -514,6 +524,85 @@ main()
 ``` {.make .figure target=fig/mlp.svg}
 $(target): src/neural_net.jl README.md
 > julia $< | dot -Tsvg > $@
+```
+
+### Write a loss function
+
+``` {.julia file=src/example2.jl}
+using Printf: @sprintf
+include("Graphviz.jl")
+using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
+
+<<value>>
+<<this-and-others>>
+<<topo-sort>>
+<<backpropagate>>
+<<visualize>>
+
+<<neuron>>
+<<layer>>
+<<mlp>>
+
+function stop_after_n(n)
+    function (i, _, loss)
+        i % 10 == 0 && println("$(i:4) $(loss)")
+        i >= n
+    end
+end
+
+function learn(nn, xs, y_reference; lossfunc=errsqr_loss, stop=stop_after_n(100), step=0.05)
+    ps = parameters(nn)
+    println("Network with $(length(ps)) free parameters.")
+    i = 0
+    prev = Inf
+    while true
+        y_prediction = [nn(literal.(x))[1] for x in xs]
+        loss = lossfunc(y_prediction, y_reference)
+        if stop(i, prev, loss.value)
+            break
+        end
+        prev = loss.value
+        backpropagate(loss)
+        for p in ps
+            p.value -= p.grad * step
+            p.grad = 0
+        end
+        i += 1
+    end
+end
+
+function main()
+    f = MLP{Float64}(3, [4, 4, 1])
+    xs = [ 2.0  3.0 -1.0;
+           3.0 -1.0  0.5;
+           0.5  1.0  1.0;
+           1.0  1.0 -1.0 ] |> eachrow |> collect
+    ys = literal.([ 1.0, -1.0, -1.0, 1.0 ])
+    learn(f, xs, ys; step=0.1)
+    println([f(literal.(x))[1].value for x in xs])
+end
+
+main()
+```
+
+### Enumerate parameters
+
+``` {.julia #neuron}
+function parameters(n :: Neuron{T}) where T
+    [n.weights; n.bias]
+end
+```
+
+``` {.julia #layer}
+function parameters(l :: Layer{T}) where T
+    vcat(parameters.(l.neurons)...)
+end
+```
+
+``` {.julia #mlp}
+function parameters(mlp :: MLP{T}) where T
+    vcat(parameters.(mlp.layers)...)
+end
 ```
 
 ## Appendix: Graphviz module

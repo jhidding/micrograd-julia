@@ -7,13 +7,13 @@ using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 # ~\~ begin <<README.md|value>>[init]
 mutable struct Value{T}
     value :: T
-    operator :: Symbol
+    operator :: Union{Symbol,Expr}
     children :: Vector{Value{T}}
     grad :: T
     label :: Union{String, Nothing}
 end
 
-Value{T}(value::T, operator::Symbol, children::Vector{Value{T}}) where T = 
+Value{T}(value::T, operator::Union{Expr,Symbol}, children::Vector{Value{T}}) where T = 
     Value(value, operator, children, zero(T), nothing)
 # ~\~ end
 # ~\~ begin <<README.md|value>>[1]
@@ -60,6 +60,7 @@ Base.:-(a::Value{T}) where T = negate(a)
 Base.:-(a::Value{T}, b::Value{T}) where T = a + negate(b)
 Base.:-(a::Value{T}, b::U) where {T, U <: Number} = a - literal(convert(T,b))
 Base.:+(a::Value{T}, b::U) where {T, U <: Number} = a + literal(convert(T,b))
+Base.:^(a::Value{T}, b::U) where {T, U <: Number} = Value{T}(a.value^b, :sqr, [a])
 # ~\~ end
 # ~\~ begin <<README.md|this-and-others>>[init]
 function this_and_others(v :: Vector{T}) where T
@@ -96,6 +97,7 @@ const derivatives = IdDict(
     :log => (x, _) -> 1/x,
     :exp => (x, _) -> exp(x),
     :negate => (_, _) -> -1.0,
+    :sqr => (x, _) -> 2*x
     # ~\~ end
 )
 # ~\~ end
