@@ -1,7 +1,7 @@
 # ~\~ language=Julia filename=src/viz_example2.jl
 # ~\~ begin <<README.md|src/viz_example2.jl>>[init]
 using Printf: @sprintf
-using Match: @match
+using MLStyle: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
@@ -61,7 +61,7 @@ Base.:-(a::Value{T}) where T = negate(a)
 Base.:-(a::Value{T}, b::Value{T}) where T = a + negate(b)
 Base.:-(a::Value{T}, b::U) where {T, U <: Number} = a - literal(convert(T,b))
 Base.:+(a::Value{T}, b::U) where {T, U <: Number} = a + literal(convert(T,b))
-Base.:^(a::Value{T}, b::U) where {T, U <: Number} = Value{T}(a.value^b, :sqr, [a])
+Base.:^(a::Value{T}, b::U) where {T, U <: Integer} = Value{T}(a.value^b, :(x^$(b)), [a])
 # ~\~ end
 # ~\~ begin <<README.md|this-and-others>>[init]
 function this_and_others(v :: Vector{T}) where T
@@ -87,6 +87,10 @@ function topo_sort(node, children = n -> n.children, visited = nothing)
 end
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[init]
+function derive(symb :: Symbol)
+    derivatives[symb]
+end
+
 const derivatives = IdDict(
     :* => (_, others) -> reduce(*, others),
     :+ => (_, _) -> 1.0,
@@ -98,7 +102,6 @@ const derivatives = IdDict(
     :log => (x, _) -> 1/x,
     :exp => (x, _) -> exp(x),
     :negate => (_, _) -> -1.0,
-    :sqr => (x, _) -> 2*x
     # ~\~ end
 )
 # ~\~ end
@@ -107,8 +110,16 @@ function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
     for n in Iterators.reverse(collect(topo_sort(v)))
         for (c, others) in this_and_others(n.children)
-            c.grad += n.grad * derivatives[n.operator](c.value, map(x -> x.value, others))
+            c.grad += n.grad * derive(n.operator)(c.value, map(x -> x.value, others))
         end
+    end
+end
+# ~\~ end
+# ~\~ begin <<README.md|backpropagate>>[2]
+function derive(expr :: Expr)
+    @match expr begin
+        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
+        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
     end
 end
 # ~\~ end

@@ -1,5 +1,5 @@
 # Micrograd in Julia
-A literate Julia translation of Andrej Karpathy's `micrograd`, following his video lecture.
+A literate Julia translation of Andrej Karpathy's `micrograd`, following his video lecture. I'll include some info boxes about Julia for Pythonista's on the way.
 
 ## Derivatives
 The goal of this exercise is to compute derivatives across a neural network. The idea is that we compute a value of some very complicated function in a forward pass, and then, traversing backward through the tree, we can infer (cheaply) the gradient of the output with respect to input variables.
@@ -17,7 +17,7 @@ Given $f = u + v$, we may see from the linearity in the definition of the deriva
 $$(u+v)' = u' + v'.$$
 :::
 
-### Product rule
+<!-- ### Product rule
 Given $f = uv$, things get a bit more complicated. First of all, we need to see that inside the limit we can write,
 
 $$\lim_{h \to 0} \Big[f'(x) = {f(x+h) - f(x) \over h}\Big],$$
@@ -42,12 +42,23 @@ In the last step, using that in the limit $u(x+h) = u(x)$. In short,
 $$(uv)' = u'v + uv'.$$
 :::
 
+-->
+
 ### Chain rule
 Now we have a function $f = u \circ v$, meaning
 
 $$f(x) = u(v(x)).$$
 
-Then, writing out the definition and again replacing $v(x+h)$, we recover the definition of the derivative of $u$, evaluated at $y=v(x)$, if we multiply by $v'(x)$ on both sides of the fraction.
+First of all, we need to see that inside the limit we can write,
+
+$$\lim_{h \to 0} \Big[f'(x) = {f(x+h) - f(x) \over h}\Big],$$
+
+therefore,
+
+$$\lim_{h \to 0} \Big[f(x+h) = f(x) + h f'(x)\Big].$$
+
+This also shows how the derivative approximates a function locally by a linear function.
+Then, writing out the definition and replacing $v(x+h)$, we recover the definition of the derivative of $u$, evaluated at $y=v(x)$, if we multiply by $v'(x)$ on both sides of the fraction.
 
 $$\begin{align}f'(x) &= \lim_{h \to 0} {u(v(x+h)) - u(v(x)) \over h}\\
                      &= \lim_{h \to 0} {u(v(x) + hv'(x)) - u(v(x)) \over h}\\
@@ -88,6 +99,24 @@ Value{T}(value::T, operator::Union{Expr,Symbol}, children::Vector{Value{T}}) whe
     Value(value, operator, children, zero(T), nothing)
 ```
 
+:::alert
+#### Julia methods
+Julia is not an object oriented language. Instead, you can define *methods* on top of any type that is already defined, similar to how you would overload functions in C++. The correct implementation of a method is selected base on the types of the arguments. The pattern of defining a `struct` and a set of methods that take that structure as a first argument replaces most of what you would do in Python using classes.
+
+Addition, multiplication and similar operators are also just functions, and can be called as such. The following are identical:
+
+```julia
+julia> 1 + 2 + 3
+6
+julia> +(1, 2, 3)
+6
+julia> +(1:3...)
+6
+```
+
+To overload functions in the standard library, remember to specify them with their full namespace. In the case of operators, an aditional `:` is required to have unambiguous syntax.
+:::
+
 Now we add methods to perform addition and multiplication on `Value`s. These implementations make sure that sum-nodes are joined into larger sum-nodes, likewise with product-nodes.
 
 ``` {.julia #value}
@@ -118,6 +147,26 @@ function label(l :: String)
 end
 ```
 
+:::alert
+#### Composing and piping
+One pattern that we may find in object oriented languages, is that of having methods that mutate an object and then return `self` or `this`. This way we can build a structure incrementally using setter methods. In Julia a similar pattern can be expressed by passing an object through a pipeline using the `|>` operator. Given the above two methods we can say
+
+```julia
+literal(42.0) |> label("the answer")
+```
+
+Note the very convenient `x -> f(x)` syntax for defining one-liner lambda functions. Another way to define `label` would be:
+
+```julia
+label(l::String) = function (v::Value{T}) where T
+    v.label = l
+    v
+end
+```
+
+Choices, choices, style and more choices.
+:::
+
 ### Topological sort
 Computing with `Value`s will generate, along with a result a dependency graph that shows exactly how we arrived at the result. We will be walking this graph up and down, which is why it is a usefull thing to have a function that iterates all nodes in *topological order*.
 
@@ -140,6 +189,31 @@ function topo_sort(node, children = n -> n.children, visited = nothing)
 end
 ```
 
+:::alert
+#### Generators and channels
+In Python you can create a generate as follows:
+
+```python
+def natural_numbers():
+    x = 1
+    while True:
+        yield x
+        x += 1
+```
+
+In Julia, the easiest way to create an generator is using `Channel() do` syntax. Under the hood this uses a very similar system of coroutines. The nice thing is that channels work very well in a multithreading environment, so your code is immediately more generic.
+
+```julia
+natural_numbers() = Channel() do chan
+    x = 1
+    while true
+        put!(chan, x)
+        x += 1
+    end
+end
+```
+:::
+
 ### Special iterator: `this_and_others`
 I supposed that, from some generality concerns, we could have combinators with more than two children. In that case, we'd like to iterate over each child, together with all their siblings (excluding the child). This is why I made an iterator that does just that `this_and_others`. Given a `Vector{T}` it yields pairs of an element and a vector containing the other elements.
 
@@ -157,6 +231,10 @@ end
 We previously derived the sum and product rules for differentiation. When written in this form, they become rather obvious. What was all the fuss about?
 
 ``` {.julia #backpropagate}
+function derive(symb :: Symbol)
+    derivatives[symb]
+end
+
 const derivatives = IdDict(
     :* => (_, others) -> reduce(*, others),
     :+ => (_, _) -> 1.0,
@@ -171,7 +249,7 @@ function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
     for n in Iterators.reverse(collect(topo_sort(v)))
         for (c, others) in this_and_others(n.children)
-            c.grad += n.grad * derivatives[n.operator](c.value, map(x -> x.value, others))
+            c.grad += n.grad * derive(n.operator)(c.value, map(x -> x.value, others))
         end
     end
 end
@@ -190,6 +268,7 @@ d = a * b + c * a |> label("d")
 
 ``` {.julia file=src/example1.jl}
 using Printf: @printf
+using MLStyle: @match
 
 <<value>>
 <<this-and-others>>
@@ -240,6 +319,7 @@ end
 
 ``` {.julia .hide file=src/viz_example1.jl}
 using Printf: @sprintf
+using MLStyle: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
@@ -306,7 +386,7 @@ backpropagate(o)
 
 ``` {.julia .hide file=src/viz_example2.jl}
 using Printf: @sprintf
-using Match: @match
+using MLStyle: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
@@ -339,6 +419,7 @@ backpropagate(b)
 
 ``` {.julia .hide file=src/viz_example3.jl}
 using Printf: @sprintf
+using MLStyle: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
@@ -369,7 +450,6 @@ We want more derivatives!
 :log => (x, _) -> 1/x,
 :exp => (x, _) -> exp(x),
 :negate => (_, _) -> -1.0,
-:sqr => (x, _) -> 2*x
 ```
 
 Now we can add more operators.
@@ -392,7 +472,7 @@ Base.:-(a::Value{T}) where T = negate(a)
 Base.:-(a::Value{T}, b::Value{T}) where T = a + negate(b)
 Base.:-(a::Value{T}, b::U) where {T, U <: Number} = a - literal(convert(T,b))
 Base.:+(a::Value{T}, b::U) where {T, U <: Number} = a + literal(convert(T,b))
-Base.:^(a::Value{T}, b::U) where {T, U <: Number} = Value{T}(a.value^b, :sqr, [a])
+Base.:^(a::Value{T}, b::U) where {T, U <: Integer} = Value{T}(a.value^b, :(x^$(b)), [a])
 ```
 
 Now we could say $\tanh x = (\exp(2x) - 1) / (\exp(2x) + 1)$
@@ -411,7 +491,7 @@ backpropagate(o)
 
 ``` {.julia .hide file=src/viz_example4.jl}
 using Printf: @sprintf
-using Match: @match
+using MLStyle: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
@@ -432,6 +512,17 @@ main()
 ``` {.make .figure target=fig/example4.svg}
 $(target): src/viz_example4.jl
 > julia $< | dot -Tsvg > $@
+```
+
+I also specify derivatives for the generic case of `x -> x^n`.
+
+``` {.julia #backpropagate}
+function derive(expr :: Expr)
+    @match expr begin
+        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
+        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
+    end
+end
 ```
 
 ## Building a neural net
@@ -496,6 +587,7 @@ end
 
 ``` {.julia file=src/neural_net.jl}
 using Printf: @sprintf
+using MLStyle: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
@@ -530,6 +622,7 @@ $(target): src/neural_net.jl README.md
 
 ``` {.julia file=src/example2.jl}
 using Printf: @sprintf
+using MLStyle: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
 
