@@ -106,6 +106,16 @@ const derivatives = IdDict(
 )
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[1]
+# ~\~ begin <<README.md|this-and-others>>[init]
+function this_and_others(v :: Vector{T}) where T
+    Channel() do chan
+        for (idx, x) in enumerate(v)
+            put!(chan, (x, [v[1:idx-1];v[idx+1:end]]))
+        end
+    end
+end
+# ~\~ end
+
 function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
     for n in Iterators.reverse(collect(topo_sort(v)))
@@ -117,10 +127,11 @@ end
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[2]
 function derive(expr :: Expr)
-    @match expr begin
-        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
-        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
-    end
+    (x, _) -> 2 * x
+    #    @match expr begin
+#        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
+#        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
+#    end
 end
 # ~\~ end
 # ~\~ begin <<README.md|visualize>>[init]

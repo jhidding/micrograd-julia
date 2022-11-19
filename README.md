@@ -228,7 +228,7 @@ end
 ```
 
 ### Derivatives
-We previously derived the sum and product rules for differentiation. When written in this form, they become rather obvious. What was all the fuss about?
+We previously derived the sum and product rules for differentiation. When written in this form, they become rather obvious. What was all the fuss about? (verifying that our intuitions are correct, that is ...)
 
 ``` {.julia #backpropagate}
 function derive(symb :: Symbol)
@@ -245,6 +245,8 @@ const derivatives = IdDict(
 Now, it is a matter of walking the evaluation tree backward. Here we find the `topo_sort` routine to be useful.
 
 ``` {.julia #backpropagate}
+<<this-and-others>>
+
 function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
     for n in Iterators.reverse(collect(topo_sort(v)))
@@ -259,38 +261,24 @@ Note, that a value may be used in several subexpressions, creating a diamond dep
 
 ## First example
 
-``` {.julia #example-1}
+``` {.julia .repl #example-1}
 a = literal(2.0) |> label("a")
 b = literal(3.0) |> label("b")
 c = literal(10.0) |> label("c")
 d = a * b + c * a |> label("d")
+println("$(d.label) = $(d.value)")
+backpropagate(d)
+println("∂_$(a.label) d = $(a.grad)")
 ```
 
 ``` {.julia file=src/example1.jl}
-using Printf: @printf
-using MLStyle: @match
-
-<<value>>
-<<this-and-others>>
-<<topo-sort>>
-<<backpropagate>>
+include("MicroGrad.jl")
+using .MicroGrad: literal, label, backpropagate
 
 function main()
     <<example-1>>
-    @printf "%s = %f\n" d.label d.value
-    backpropagate(d)
-    @printf "∂_%s d = %f\n" a.label a.grad
-    print(collect(topo_sort(d)) .|> x -> x.label)
 end
-
 main()
-```
-
-Giving
-
-```
-d = 26.000000
-∂_a d = 13.000000
 ```
 
 ## Plotting tree in `graphviz`
@@ -317,17 +305,19 @@ function visualize(v::Value{T}) where T
 end
 ```
 
-``` {.julia .hide file=src/viz_example1.jl}
+``` {.julia .hide #prelude}
+<<visualize>>
+```
+
+``` {.julia #imports}
 using Printf: @sprintf
-using MLStyle: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
+# using MLStyle: @match
+```
 
-<<value>>
-<<this-and-others>>
-<<topo-sort>>
-<<backpropagate>>
-<<visualize>>
+``` {.julia .hide file=src/viz_example1.jl}
+<<prelude>>
 
 function main()
     <<example-1>>
@@ -340,7 +330,7 @@ main()
 
 ``` {.make .figure target=fig/example1.svg}
 $(target): src/viz_example1.jl
-> julia $< | dot -Tsvg > $@
+> julia --project=. $< | dot -Tsvg > $@
 ```
 
 ## A Neuron
@@ -406,40 +396,7 @@ main()
 
 ``` {.make .figure target=fig/example2.svg}
 $(target): src/viz_example2.jl
-> julia $< | dot -Tsvg > $@
-```
-
-## Multi-path dependencies
-
-``` {.julia #example-3}
-a = literal(1.0) |> label("a")
-b = a + a |> label("b")
-backpropagate(b)
-```
-
-``` {.julia .hide file=src/viz_example3.jl}
-using Printf: @sprintf
-using MLStyle: @match
-include("Graphviz.jl")
-using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
-
-<<value>>
-<<this-and-others>>
-<<topo-sort>>
-<<backpropagate>>
-<<visualize>>
-
-function main()
-    <<example-3>>
-    print(visualize(b))
-end
-
-main()
-```
-
-``` {.make .figure target=fig/example3.svg}
-$(target): src/viz_example3.jl
-> julia $< | dot -Tsvg > $@
+> julia --project=. $< | dot -Tsvg > $@
 ```
 
 ## More derivatives
@@ -511,17 +468,18 @@ main()
 
 ``` {.make .figure target=fig/example4.svg}
 $(target): src/viz_example4.jl
-> julia $< | dot -Tsvg > $@
+> julia --project=. $< | dot -Tsvg > $@
 ```
 
 I also specify derivatives for the generic case of `x -> x^n`.
 
 ``` {.julia #backpropagate}
 function derive(expr :: Expr)
-    @match expr begin
-        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
-        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
-    end
+    (x, _) -> 2 * x
+    #    @match expr begin
+#        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
+#        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
+#    end
 end
 ```
 
@@ -615,7 +573,34 @@ main()
 
 ``` {.make .figure target=fig/mlp.svg}
 $(target): src/neural_net.jl README.md
-> julia $< | dot -Tsvg > $@
+> julia --project=. $< | dot -Tsvg > $@
+```
+
+### Enumerate parameters
+To make the model learn, we need to have access to all the parameters in the model.
+
+``` {.julia #neuron}
+function parameters(n :: Neuron{T}) where T
+    [n.weights; n.bias]
+end
+```
+
+``` {.julia #layer}
+function parameters(l :: Layer{T}) where T
+    vcat(parameters.(l.neurons)...)
+end
+```
+
+``` {.julia #mlp}
+function parameters(mlp :: MLP{T}) where T
+    vcat(parameters.(mlp.layers)...)
+end
+```
+
+Let's count the number of parameters in our network:
+
+``` {.julia .repl}
+
 ```
 
 ### Write a loss function
@@ -678,27 +663,26 @@ end
 main()
 ```
 
-### Enumerate parameters
+## Appendix A: MicroGrad module
 
-``` {.julia #neuron}
-function parameters(n :: Neuron{T}) where T
-    [n.weights; n.bias]
+``` {.julia file=src/MicroGrad.jl}
+module MicroGrad
+
+<<imports>>
+
+<<value>>
+<<topo-sort>>
+<<backpropagate>>
+<<visualize>>
+
+<<neuron>>
+<<layer>>
+<<mlp>>
+
 end
 ```
 
-``` {.julia #layer}
-function parameters(l :: Layer{T}) where T
-    vcat(parameters.(l.neurons)...)
-end
-```
-
-``` {.julia #mlp}
-function parameters(mlp :: MLP{T}) where T
-    vcat(parameters.(mlp.layers)...)
-end
-```
-
-## Appendix: Graphviz module
+## Appendix B: Graphviz module
 For those interested, here's the source for `Graphviz.jl`.
 
 ``` {.julia file=src/Graphviz.jl}

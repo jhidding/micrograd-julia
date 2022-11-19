@@ -284,7 +284,7 @@ $$(uv)' = u'v + uv'.$$
 </section>
 <section id="derivatives-1" class="level2">
 <h2>Derivatives</h2>
-<p>We previously derived the sum and product rules for differentiation. When written in this form, they become rather obvious. What was all the fuss about?</p>
+<p>We previously derived the sum and product rules for differentiation. When written in this form, they become rather obvious. What was all the fuss about? (verifying that our intuitions are correct, that is …)</p>
 <div class="named-code-block">
 <p>«backpropagate»</p>
 <div class="sourceCode" id="cb12"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> derive(symb <span class="op">::</span> <span class="dt">Symbol</span>)</span>
@@ -300,14 +300,16 @@ $$(uv)' = u'v + uv'.$$
 <p>Now, it is a matter of walking the evaluation tree backward. Here we find the <code>topo_sort</code> routine to be useful.</p>
 <div class="named-code-block">
 <p>«backpropagate»</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> backpropagate(v <span class="op">::</span> Value{T}) <span class="kw">where</span> T</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    v.grad <span class="op">=</span> one(T)</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> <span class="bu">Iterators</span>.reverse(collect(topo_sort(v)))</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> (c<span class="op">,</span> others) <span class="kw">in</span> this_and_others(n.children)</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>            c.grad <span class="op">+=</span> n.grad <span class="op">*</span> derive(n.operator)(c.value<span class="op">,</span> map(x <span class="op">-&gt;</span> x.value<span class="op">,</span> others))</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> backpropagate(v <span class="op">::</span> Value{T}) <span class="kw">where</span> T</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    v.grad <span class="op">=</span> one(T)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> <span class="bu">Iterators</span>.reverse(collect(topo_sort(v)))</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> (c<span class="op">,</span> others) <span class="kw">in</span> this_and_others(n.children)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>            c.grad <span class="op">+=</span> n.grad <span class="op">*</span> derive(n.operator)(c.value<span class="op">,</span> map(x <span class="op">-&gt;</span> x.value<span class="op">,</span> others))</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 <p>Note, that a value may be used in several subexpressions, creating a diamond dependency diagram. In such a case, we want to add all contributions from different branches. This is why we find <code>c.grad += ...</code> there.</p>
 </section>
@@ -319,55 +321,52 @@ $$(uv)' = u'v + uv'.$$
 <div class="sourceCode" id="cb14"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> literal(<span class="fl">2.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;a&quot;</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> literal(<span class="fl">3.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;b&quot;</span>)</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>c <span class="op">=</span> literal(<span class="fl">10.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;c&quot;</span>)</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> a <span class="op">*</span> b <span class="op">+</span> c <span class="op">*</span> a <span class="op">|&gt;</span> label(<span class="st">&quot;d&quot;</span>)</span></code></pre></div>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> a <span class="op">*</span> b <span class="op">+</span> c <span class="op">*</span> a <span class="op">|&gt;</span> label(<span class="st">&quot;d&quot;</span>)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>println(<span class="st">&quot;$(d.label) = $(d.value)&quot;</span>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>backpropagate(d)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>println(<span class="st">&quot;∂_$(a.label) d = $(a.grad)&quot;</span>)</span></code></pre></div>
 </div>
 <div class="named-code-block">
 <p>file:src/example1.jl</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@printf</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> MLStyle<span class="op">:</span> <span class="pp">@match</span></span>
+<div class="sourceCode" id="cb15"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>include(<span class="st">&quot;MicroGrad.jl&quot;</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> .MicroGrad<span class="op">:</span> literal<span class="op">,</span> label<span class="op">,</span> backpropagate</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>topo<span class="op">-</span>sort<span class="op">&gt;&gt;</span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">&lt;&lt;</span>example<span class="op">-</span><span class="fl">1</span><span class="op">&gt;&gt;</span></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;%s = %f</span><span class="sc">\n</span><span class="st">&quot;</span> d.label d.value</span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>    backpropagate(d)</span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@printf</span> <span class="st">&quot;∂_%s d = %f</span><span class="sc">\n</span><span class="st">&quot;</span> a.label a.grad</span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    print(collect(topo_sort(d)) .<span class="op">|&gt;</span> x <span class="op">-&gt;</span> x.label)</span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">&lt;&lt;</span>example<span class="op">-</span><span class="fl">1</span><span class="op">&gt;&gt;</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
 </div>
-<p>Giving</p>
-<pre><code>d = 26.000000
-∂_a d = 13.000000</code></pre>
 </section>
 <section id="plotting-tree-in-graphviz" class="level1">
 <h1>Plotting tree in <code>graphviz</code></h1>
 <p>Julia has a module for interaction with Graphviz, but it requires input in dot language, so this module is next to useless. We can do better.</p>
 <div class="named-code-block">
 <p>«visualize»</p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> visualize(v<span class="op">::</span>Value{T}) <span class="kw">where</span> T</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    g <span class="op">=</span> digraph(<span class="op">;</span> rankdir<span class="op">=</span><span class="st">&quot;LR&quot;</span>)</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> topo_sort(v)</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>        objid <span class="op">=</span> repr(hash(n))</span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>        objlabel <span class="op">=</span> (isnothing(n.label) ? <span class="st">&quot;&quot;</span> <span class="op">:</span> n.label)</span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>        reclabel <span class="op">=</span> <span class="pp">@sprintf</span> <span class="st">&quot;{ %s | data: %0.2f | grad: %0.2f }&quot;</span>  objlabel n.value n.grad</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>        g <span class="op">|&gt;</span> add_node(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> shape<span class="op">=</span><span class="st">&quot;record&quot;</span><span class="op">,</span> label<span class="op">=</span>reclabel)</span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">if</span> (n.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span>)</span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>            g <span class="op">|&gt;</span> add_node(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> label<span class="op">=</span><span class="dt">String</span>(n.operator)) <span class="op">|&gt;</span></span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>                 add_edge(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">,</span> <span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid)</span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> c <span class="kw">in</span> n.children</span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>            childid <span class="op">=</span> repr(hash(c))</span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>            g <span class="op">|&gt;</span> add_edge(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> childid<span class="op">,</span> (n.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span> ? <span class="st">&quot;op_&quot;</span> <span class="op">:</span> <span class="st">&quot;dat_&quot;</span>) <span class="op">*</span> objid)</span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>    g</span>
-<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> visualize(v<span class="op">::</span>Value{T}) <span class="kw">where</span> T</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    g <span class="op">=</span> digraph(<span class="op">;</span> rankdir<span class="op">=</span><span class="st">&quot;LR&quot;</span>)</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> topo_sort(v)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>        objid <span class="op">=</span> repr(hash(n))</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>        objlabel <span class="op">=</span> (isnothing(n.label) ? <span class="st">&quot;&quot;</span> <span class="op">:</span> n.label)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>        reclabel <span class="op">=</span> <span class="pp">@sprintf</span> <span class="st">&quot;{ %s | data: %0.2f | grad: %0.2f }&quot;</span>  objlabel n.value n.grad</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>        g <span class="op">|&gt;</span> add_node(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> shape<span class="op">=</span><span class="st">&quot;record&quot;</span><span class="op">,</span> label<span class="op">=</span>reclabel)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">if</span> (n.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span>)</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>            g <span class="op">|&gt;</span> add_node(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">;</span> label<span class="op">=</span><span class="dt">String</span>(n.operator)) <span class="op">|&gt;</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>                 add_edge(<span class="st">&quot;op_&quot;</span> <span class="op">*</span> objid<span class="op">,</span> <span class="st">&quot;dat_&quot;</span> <span class="op">*</span> objid)</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> c <span class="kw">in</span> n.children</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>            childid <span class="op">=</span> repr(hash(c))</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>            g <span class="op">|&gt;</span> add_edge(<span class="st">&quot;dat_&quot;</span> <span class="op">*</span> childid<span class="op">,</span> (n.operator <span class="op">!==</span> <span class="op">:</span><span class="kw">const</span> ? <span class="st">&quot;op_&quot;</span> <span class="op">:</span> <span class="st">&quot;dat_&quot;</span>) <span class="op">*</span> objid)</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>    g</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+</div>
+<div class="named-code-block">
+<p>«imports»</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@sprintf</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>include(<span class="st">&quot;Graphviz.jl&quot;</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> .Graphviz<span class="op">:</span> Graph<span class="op">,</span> digraph<span class="op">,</span> add_node<span class="op">,</span> add_edge<span class="op">,</span> add_attr</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># using MLStyle: @match</span></span></code></pre></div>
 </div>
 <p><img src="fig/example1.svg" class="figure" alt="" /></p>
 </section>
@@ -400,71 +399,62 @@ $$(uv)' = u'v + uv'.$$
 </div>
 <p><img src="fig/example2.svg" class="figure" alt="" /></p>
 </section>
-<section id="multi-path-dependencies" class="level1">
-<h1>Multi-path dependencies</h1>
-<div class="named-code-block">
-<p>«example-3»</p>
-<div class="sourceCode" id="cb21"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> literal(<span class="fl">1.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;a&quot;</span>)</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> a <span class="op">+</span> a <span class="op">|&gt;</span> label(<span class="st">&quot;b&quot;</span>)</span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>backpropagate(b)</span></code></pre></div>
-</div>
-<p><img src="fig/example3.svg" class="figure" alt="" /></p>
-</section>
 <section id="more-derivatives" class="level1">
 <h1>More derivatives</h1>
 <p>We want more derivatives!</p>
 <div class="named-code-block">
 <p>«derivatives»</p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="op">:</span>inv <span class="op">=&gt;</span> (x<span class="op">,</span> _) <span class="op">-&gt;</span> <span class="op">-</span><span class="fl">1</span><span class="op">/</span>x<span class="op">^</span><span class="fl">2</span><span class="op">,</span></span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="op">:</span>log <span class="op">=&gt;</span> (x<span class="op">,</span> _) <span class="op">-&gt;</span> <span class="fl">1</span><span class="op">/</span>x<span class="op">,</span></span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="op">:</span>exp <span class="op">=&gt;</span> (x<span class="op">,</span> _) <span class="op">-&gt;</span> exp(x)<span class="op">,</span></span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="op">:</span>negate <span class="op">=&gt;</span> (_<span class="op">,</span> _) <span class="op">-&gt;</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span></span></code></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="op">:</span>inv <span class="op">=&gt;</span> (x<span class="op">,</span> _) <span class="op">-&gt;</span> <span class="op">-</span><span class="fl">1</span><span class="op">/</span>x<span class="op">^</span><span class="fl">2</span><span class="op">,</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="op">:</span>log <span class="op">=&gt;</span> (x<span class="op">,</span> _) <span class="op">-&gt;</span> <span class="fl">1</span><span class="op">/</span>x<span class="op">,</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="op">:</span>exp <span class="op">=&gt;</span> (x<span class="op">,</span> _) <span class="op">-&gt;</span> exp(x)<span class="op">,</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="op">:</span>negate <span class="op">=&gt;</span> (_<span class="op">,</span> _) <span class="op">-&gt;</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span></span></code></pre></div>
 </div>
 <p>Now we can add more operators.</p>
 <div class="named-code-block">
 <p>«value»</p>
-<div class="sourceCode" id="cb23"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.convert(<span class="op">::</span><span class="dt">Type</span>{Value{T}}<span class="op">,</span> x <span class="op">::</span> T) <span class="kw">where</span> T</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>   literal(x)</span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> vmap(f<span class="op">,</span> operator<span class="op">::</span><span class="dt">Symbol</span><span class="op">,</span> value<span class="op">::</span>Value{T}) <span class="kw">where</span> T</span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    Value{T}(f(value.value)<span class="op">,</span> operator<span class="op">,</span> [value])</span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:*</span>(s<span class="op">::</span>U<span class="op">,</span> a<span class="op">::</span>Value{T}) <span class="kw">where</span> {T<span class="op">,</span> U <span class="op">&lt;:</span> <span class="dt">Number</span>} <span class="op">=</span> convert(Value{T}<span class="op">,</span> convert(T<span class="op">,</span>s)) <span class="op">*</span> a</span>
-<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.inv(a<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> vmap(inv<span class="op">,</span> <span class="op">:</span>inv<span class="op">,</span> a)</span>
-<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:/</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> a <span class="op">*</span> inv(b)</span>
-<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.exp(a<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> vmap(exp<span class="op">,</span> <span class="op">:</span>exp<span class="op">,</span> a)</span>
-<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>negate(a<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> vmap(<span class="op">-,</span> <span class="op">:</span>negate<span class="op">,</span> a)</span>
-<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:-</span>(a<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> negate(a)</span>
-<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:-</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> a <span class="op">+</span> negate(b)</span>
-<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:-</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>U) <span class="kw">where</span> {T<span class="op">,</span> U <span class="op">&lt;:</span> <span class="dt">Number</span>} <span class="op">=</span> a <span class="op">-</span> literal(convert(T<span class="op">,</span>b))</span>
-<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:+</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>U) <span class="kw">where</span> {T<span class="op">,</span> U <span class="op">&lt;:</span> <span class="dt">Number</span>} <span class="op">=</span> a <span class="op">+</span> literal(convert(T<span class="op">,</span>b))</span>
-<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:^</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>U) <span class="kw">where</span> {T<span class="op">,</span> U <span class="op">&lt;:</span> <span class="dt">Integer</span>} <span class="op">=</span> Value{T}(a.value<span class="op">^</span>b<span class="op">,</span> <span class="op">:</span>(x<span class="op">^$</span>(b))<span class="op">,</span> [a])</span></code></pre></div>
+<div class="sourceCode" id="cb22"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.convert(<span class="op">::</span><span class="dt">Type</span>{Value{T}}<span class="op">,</span> x <span class="op">::</span> T) <span class="kw">where</span> T</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>   literal(x)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> vmap(f<span class="op">,</span> operator<span class="op">::</span><span class="dt">Symbol</span><span class="op">,</span> value<span class="op">::</span>Value{T}) <span class="kw">where</span> T</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    Value{T}(f(value.value)<span class="op">,</span> operator<span class="op">,</span> [value])</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:*</span>(s<span class="op">::</span>U<span class="op">,</span> a<span class="op">::</span>Value{T}) <span class="kw">where</span> {T<span class="op">,</span> U <span class="op">&lt;:</span> <span class="dt">Number</span>} <span class="op">=</span> convert(Value{T}<span class="op">,</span> convert(T<span class="op">,</span>s)) <span class="op">*</span> a</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.inv(a<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> vmap(inv<span class="op">,</span> <span class="op">:</span>inv<span class="op">,</span> a)</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:/</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> a <span class="op">*</span> inv(b)</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.exp(a<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> vmap(exp<span class="op">,</span> <span class="op">:</span>exp<span class="op">,</span> a)</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>negate(a<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> vmap(<span class="op">-,</span> <span class="op">:</span>negate<span class="op">,</span> a)</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:-</span>(a<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> negate(a)</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:-</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>Value{T}) <span class="kw">where</span> T <span class="op">=</span> a <span class="op">+</span> negate(b)</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:-</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>U) <span class="kw">where</span> {T<span class="op">,</span> U <span class="op">&lt;:</span> <span class="dt">Number</span>} <span class="op">=</span> a <span class="op">-</span> literal(convert(T<span class="op">,</span>b))</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:+</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>U) <span class="kw">where</span> {T<span class="op">,</span> U <span class="op">&lt;:</span> <span class="dt">Number</span>} <span class="op">=</span> a <span class="op">+</span> literal(convert(T<span class="op">,</span>b))</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.<span class="op">:^</span>(a<span class="op">::</span>Value{T}<span class="op">,</span> b<span class="op">::</span>U) <span class="kw">where</span> {T<span class="op">,</span> U <span class="op">&lt;:</span> <span class="dt">Integer</span>} <span class="op">=</span> Value{T}(a.value<span class="op">^</span>b<span class="op">,</span> <span class="op">:</span>(x<span class="op">^$</span>(b))<span class="op">,</span> [a])</span></code></pre></div>
 </div>
 <p>Now we could say <span class="math inline">\(\tanh x = (\exp(2x) - 1) / (\exp(2x) + 1)\)</span></p>
 <div class="named-code-block">
 <p>«example-4»</p>
-<div class="sourceCode" id="cb24"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>mytanh(x) <span class="op">=</span> <span class="kw">begin</span> y <span class="op">=</span> exp(<span class="fl">2</span><span class="op">*</span>x)<span class="op">;</span> (y <span class="op">-</span> <span class="fl">1</span>) <span class="op">/</span> (y <span class="op">+</span> <span class="fl">1</span>) <span class="kw">end</span></span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> literal(<span class="fl">2.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;x1&quot;</span>)</span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> literal(<span class="fl">0.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;x2&quot;</span>)</span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>w1 <span class="op">=</span> literal(<span class="op">-</span><span class="fl">3.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;w1&quot;</span>)</span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>w2 <span class="op">=</span> literal(<span class="fl">1.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;w2&quot;</span>)</span>
-<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> literal(<span class="fl">6.8813735870195432</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;b&quot;</span>)</span>
-<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> x1<span class="op">*</span>w1 <span class="op">+</span> x2<span class="op">*</span>w2 <span class="op">+</span> b <span class="op">|&gt;</span> label(<span class="st">&quot;n&quot;</span>)</span>
-<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>o <span class="op">=</span> mytanh(n) <span class="op">|&gt;</span> label(<span class="st">&quot;out&quot;</span>)</span>
-<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>backpropagate(o)</span></code></pre></div>
+<div class="sourceCode" id="cb23"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>mytanh(x) <span class="op">=</span> <span class="kw">begin</span> y <span class="op">=</span> exp(<span class="fl">2</span><span class="op">*</span>x)<span class="op">;</span> (y <span class="op">-</span> <span class="fl">1</span>) <span class="op">/</span> (y <span class="op">+</span> <span class="fl">1</span>) <span class="kw">end</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> literal(<span class="fl">2.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;x1&quot;</span>)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> literal(<span class="fl">0.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;x2&quot;</span>)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>w1 <span class="op">=</span> literal(<span class="op">-</span><span class="fl">3.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;w1&quot;</span>)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>w2 <span class="op">=</span> literal(<span class="fl">1.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;w2&quot;</span>)</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> literal(<span class="fl">6.8813735870195432</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;b&quot;</span>)</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> x1<span class="op">*</span>w1 <span class="op">+</span> x2<span class="op">*</span>w2 <span class="op">+</span> b <span class="op">|&gt;</span> label(<span class="st">&quot;n&quot;</span>)</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>o <span class="op">=</span> mytanh(n) <span class="op">|&gt;</span> label(<span class="st">&quot;out&quot;</span>)</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>backpropagate(o)</span></code></pre></div>
 </div>
 <p><img src="fig/example4.svg" class="figure" alt="" /></p>
 <p>I also specify derivatives for the generic case of <code>x -&gt; x^n</code>.</p>
 <div class="named-code-block">
 <p>«backpropagate»</p>
-<div class="sourceCode" id="cb25"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> derive(expr <span class="op">::</span> <span class="dt">Expr</span>)</span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@match</span> expr <span class="kw">begin</span></span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Expr</span>(<span class="op">:</span>call<span class="op">,</span> <span class="op">:^,</span> <span class="op">:</span>x<span class="op">,</span> n) <span class="op">=&gt;</span> (x<span class="op">,</span> _) <span class="op">-&gt;</span> n <span class="op">*</span> x<span class="op">^</span>(n<span class="op">-</span><span class="fl">1</span>)</span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Expr</span>(expr_type<span class="op">,</span> _<span class="op">...</span>)  <span class="op">=&gt;</span> error(<span class="st">&quot;Unknown expression $(expr) of type $(expr_type)&quot;</span>)</span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb24"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> derive(expr <span class="op">::</span> <span class="dt">Expr</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    (x<span class="op">,</span> _) <span class="op">-&gt;</span> <span class="fl">2</span> <span class="op">*</span> x</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">#    @match expr begin</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="co">#        Expr(:call, :^, :x, n) =&gt; (x, _) -&gt; n * x^(n-1)</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="co">#        Expr(expr_type, _...)  =&gt; error(&quot;Unknown expression $(expr) of type $(expr_type)&quot;)</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="co">#    end</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 </section>
 <section id="building-a-neural-net" class="level1">
@@ -473,342 +463,365 @@ $$(uv)' = u'v + uv'.$$
 <h2>Neuron</h2>
 <div class="named-code-block">
 <p>«neuron»</p>
-<div class="sourceCode" id="cb26"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Neuron{T}</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    weights <span class="op">::</span> <span class="dt">Vector</span>{Value{T}}</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    bias <span class="op">::</span> Value{T}</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>Neuron{T}(n<span class="op">::</span><span class="dt">Int</span>) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span> <span class="op">=</span></span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    Neuron{T}(</span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>        [literal(rand() <span class="op">*</span> <span class="fl">2</span> <span class="op">-</span> <span class="fl">1</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;w$(i)&quot;</span>) <span class="kw">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>n]<span class="op">,</span></span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>        literal(rand() <span class="op">*</span> <span class="fl">2</span> <span class="op">-</span> <span class="fl">1</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;bias&quot;</span>))</span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> (n<span class="op">::</span>Neuron{T})(x<span class="op">::</span><span class="dt">Vector</span>{Value{T}}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span></span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    tanh(sum(n.weights <span class="op">.*</span> x<span class="op">;</span> init <span class="op">=</span> n.bias))</span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Neuron{T}</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    weights <span class="op">::</span> <span class="dt">Vector</span>{Value{T}}</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    bias <span class="op">::</span> Value{T}</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>Neuron{T}(n<span class="op">::</span><span class="dt">Int</span>) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span> <span class="op">=</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    Neuron{T}(</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>        [literal(rand() <span class="op">*</span> <span class="fl">2</span> <span class="op">-</span> <span class="fl">1</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;w$(i)&quot;</span>) <span class="kw">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>n]<span class="op">,</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>        literal(rand() <span class="op">*</span> <span class="fl">2</span> <span class="op">-</span> <span class="fl">1</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;bias&quot;</span>))</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> (n<span class="op">::</span>Neuron{T})(x<span class="op">::</span><span class="dt">Vector</span>{Value{T}}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    tanh(sum(n.weights <span class="op">.*</span> x<span class="op">;</span> init <span class="op">=</span> n.bias))</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 </section>
 <section id="layer" class="level2">
 <h2>Layer</h2>
 <div class="named-code-block">
 <p>«layer»</p>
-<div class="sourceCode" id="cb27"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Layer{T}</span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>    neurons <span class="op">::</span> <span class="dt">Vector</span>{Neuron{T}}</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>Layer{T}(n_in<span class="op">::</span><span class="dt">Int</span><span class="op">,</span> n_out<span class="op">::</span><span class="dt">Int</span>) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span> <span class="op">=</span></span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>    Layer{T}([Neuron{T}(n_in) <span class="kw">for</span> _ <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>n_out])</span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> (l<span class="op">::</span>Layer{T})(x<span class="op">::</span><span class="dt">Vector</span>{Value{T}}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span></span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>    [n(x) <span class="kw">for</span> n <span class="kw">in</span> l.neurons]</span>
-<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb26"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Layer{T}</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    neurons <span class="op">::</span> <span class="dt">Vector</span>{Neuron{T}}</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>Layer{T}(n_in<span class="op">::</span><span class="dt">Int</span><span class="op">,</span> n_out<span class="op">::</span><span class="dt">Int</span>) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span> <span class="op">=</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    Layer{T}([Neuron{T}(n_in) <span class="kw">for</span> _ <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>n_out])</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> (l<span class="op">::</span>Layer{T})(x<span class="op">::</span><span class="dt">Vector</span>{Value{T}}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    [n(x) <span class="kw">for</span> n <span class="kw">in</span> l.neurons]</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 </section>
 <section id="multi-layer-perceptron" class="level2">
 <h2>Multi-layer perceptron</h2>
 <div class="named-code-block">
 <p>«mlp»</p>
-<div class="sourceCode" id="cb28"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> MLP{T}</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    layers <span class="op">::</span> <span class="dt">Vector</span>{Layer{T}}</span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>pairs(it) <span class="op">=</span> zip(it[<span class="fl">1</span><span class="op">:</span><span class="kw">end</span><span class="op">-</span><span class="fl">1</span>]<span class="op">,</span> it[<span class="fl">2</span><span class="op">:</span><span class="kw">end</span>])</span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>MLP{T}(n_in<span class="op">::</span><span class="dt">Int</span><span class="op">,</span> n_out<span class="op">::</span><span class="dt">Vector</span>{<span class="dt">Int</span>}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span> <span class="op">=</span></span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>    MLP{T}([Layer{T}(s<span class="op">...</span>) <span class="kw">for</span> s <span class="kw">in</span> pairs([n_in<span class="op">;</span> n_out])])</span>
-<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> (mlp<span class="op">::</span>MLP{T})(x<span class="op">::</span><span class="dt">Vector</span>{Value{T}}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span></span>
-<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> l <span class="kw">in</span> mlp.layers</span>
-<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>        x <span class="op">=</span> l(x)</span>
-<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>    x</span>
-<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> (mlp<span class="op">::</span>MLP{T})(x<span class="op">::</span><span class="dt">Vector</span>{T}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span></span>
-<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>    mlp(literal.(x))</span>
-<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> errsqr_loss(y_ref<span class="op">,</span> y)</span>
-<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>    sum((y_ref .<span class="op">-</span> y)<span class="op">.^</span><span class="fl">2</span>)</span>
-<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb27"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> MLP{T}</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>    layers <span class="op">::</span> <span class="dt">Vector</span>{Layer{T}}</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>pairs(it) <span class="op">=</span> zip(it[<span class="fl">1</span><span class="op">:</span><span class="kw">end</span><span class="op">-</span><span class="fl">1</span>]<span class="op">,</span> it[<span class="fl">2</span><span class="op">:</span><span class="kw">end</span>])</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>MLP{T}(n_in<span class="op">::</span><span class="dt">Int</span><span class="op">,</span> n_out<span class="op">::</span><span class="dt">Vector</span>{<span class="dt">Int</span>}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span> <span class="op">=</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    MLP{T}([Layer{T}(s<span class="op">...</span>) <span class="kw">for</span> s <span class="kw">in</span> pairs([n_in<span class="op">;</span> n_out])])</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> (mlp<span class="op">::</span>MLP{T})(x<span class="op">::</span><span class="dt">Vector</span>{Value{T}}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> l <span class="kw">in</span> mlp.layers</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>        x <span class="op">=</span> l(x)</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>    x</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> (mlp<span class="op">::</span>MLP{T})(x<span class="op">::</span><span class="dt">Vector</span>{T}) <span class="kw">where</span> T <span class="op">&lt;:</span> <span class="dt">Real</span></span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>    mlp(literal.(x))</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> errsqr_loss(y_ref<span class="op">,</span> y)</span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>    sum((y_ref .<span class="op">-</span> y)<span class="op">.^</span><span class="fl">2</span>)</span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 <div class="named-code-block">
 <p>file:src/neural_net.jl</p>
-<div class="sourceCode" id="cb29"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@sprintf</span></span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> MLStyle<span class="op">:</span> <span class="pp">@match</span></span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>include(<span class="st">&quot;Graphviz.jl&quot;</span>)</span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> .Graphviz<span class="op">:</span> Graph<span class="op">,</span> digraph<span class="op">,</span> add_node<span class="op">,</span> add_edge<span class="op">,</span> add_attr</span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
-<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>topo<span class="op">-</span>sort<span class="op">&gt;&gt;</span></span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>visualize<span class="op">&gt;&gt;</span></span>
-<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>neuron<span class="op">&gt;&gt;</span></span>
-<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>layer<span class="op">&gt;&gt;</span></span>
-<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>mlp<span class="op">&gt;&gt;</span></span>
-<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
-<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>    f <span class="op">=</span> MLP{<span class="dt">Float64</span>}(<span class="fl">3</span><span class="op">,</span> [<span class="fl">4</span><span class="op">,</span> <span class="fl">4</span><span class="op">,</span> <span class="fl">1</span>])</span>
-<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> f([literal(<span class="fl">1.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;in1&quot;</span>)<span class="op">,</span></span>
-<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a>           literal(<span class="fl">2.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;in2&quot;</span>)<span class="op">,</span></span>
-<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>           literal(<span class="fl">4.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;in3&quot;</span>)])[<span class="fl">1</span>] <span class="op">|&gt;</span> label(<span class="st">&quot;out&quot;</span>)</span>
-<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a>    backpropagate(y)</span>
-<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a>    print(visualize(y))</span>
-<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
+<div class="sourceCode" id="cb28"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@sprintf</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> MLStyle<span class="op">:</span> <span class="pp">@match</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>include(<span class="st">&quot;Graphviz.jl&quot;</span>)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> .Graphviz<span class="op">:</span> Graph<span class="op">,</span> digraph<span class="op">,</span> add_node<span class="op">,</span> add_edge<span class="op">,</span> add_attr</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>topo<span class="op">-</span>sort<span class="op">&gt;&gt;</span></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>visualize<span class="op">&gt;&gt;</span></span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>neuron<span class="op">&gt;&gt;</span></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>layer<span class="op">&gt;&gt;</span></span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>mlp<span class="op">&gt;&gt;</span></span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>    f <span class="op">=</span> MLP{<span class="dt">Float64</span>}(<span class="fl">3</span><span class="op">,</span> [<span class="fl">4</span><span class="op">,</span> <span class="fl">4</span><span class="op">,</span> <span class="fl">1</span>])</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> f([literal(<span class="fl">1.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;in1&quot;</span>)<span class="op">,</span></span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>           literal(<span class="fl">2.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;in2&quot;</span>)<span class="op">,</span></span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>           literal(<span class="fl">4.0</span>) <span class="op">|&gt;</span> label(<span class="st">&quot;in3&quot;</span>)])[<span class="fl">1</span>] <span class="op">|&gt;</span> label(<span class="st">&quot;out&quot;</span>)</span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>    backpropagate(y)</span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>    print(visualize(y))</span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
 </div>
 <p><img src="fig/mlp.svg" class="figure" alt="" /></p>
+</section>
+<section id="enumerate-parameters" class="level2">
+<h2>Enumerate parameters</h2>
+<p>To make the model learn, we need to have access to all the parameters in the model.</p>
+<div class="named-code-block">
+<p>«neuron»</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> parameters(n <span class="op">::</span> Neuron{T}) <span class="kw">where</span> T</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>    [n.weights<span class="op">;</span> n.bias]</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+</div>
+<div class="named-code-block">
+<p>«layer»</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> parameters(l <span class="op">::</span> Layer{T}) <span class="kw">where</span> T</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>    vcat(parameters.(l.neurons)<span class="op">...</span>)</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+</div>
+<div class="named-code-block">
+<p>«mlp»</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> parameters(mlp <span class="op">::</span> MLP{T}) <span class="kw">where</span> T</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    vcat(parameters.(mlp.layers)<span class="op">...</span>)</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+</div>
+<p>Let’s count the number of parameters in our network:</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode julia repl"><code class="sourceCode julia"></code></pre></div>
 </section>
 <section id="write-a-loss-function" class="level2">
 <h2>Write a loss function</h2>
 <div class="named-code-block">
 <p>file:src/example2.jl</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@sprintf</span></span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> MLStyle<span class="op">:</span> <span class="pp">@match</span></span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>include(<span class="st">&quot;Graphviz.jl&quot;</span>)</span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> .Graphviz<span class="op">:</span> Graph<span class="op">,</span> digraph<span class="op">,</span> add_node<span class="op">,</span> add_edge<span class="op">,</span> add_attr</span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
-<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
-<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>topo<span class="op">-</span>sort<span class="op">&gt;&gt;</span></span>
-<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
-<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>visualize<span class="op">&gt;&gt;</span></span>
-<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>neuron<span class="op">&gt;&gt;</span></span>
-<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>layer<span class="op">&gt;&gt;</span></span>
-<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>mlp<span class="op">&gt;&gt;</span></span>
-<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> stop_after_n(n)</span>
-<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">function</span> (i<span class="op">,</span> _<span class="op">,</span> loss)</span>
-<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>        i % <span class="fl">10</span> <span class="op">==</span> <span class="fl">0</span> <span class="op">&amp;&amp;</span> println(<span class="st">&quot;$(i:4) $(loss)&quot;</span>)</span>
-<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>        i <span class="op">&gt;=</span> n</span>
-<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> learn(nn<span class="op">,</span> xs<span class="op">,</span> y_reference<span class="op">;</span> lossfunc<span class="op">=</span>errsqr_loss<span class="op">,</span> stop<span class="op">=</span>stop_after_n(<span class="fl">100</span>)<span class="op">,</span> step<span class="op">=</span><span class="fl">0.05</span>)</span>
-<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>    ps <span class="op">=</span> parameters(nn)</span>
-<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>    println(<span class="st">&quot;Network with $(length(ps)) free parameters.&quot;</span>)</span>
-<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a>    i <span class="op">=</span> <span class="fl">0</span></span>
-<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a>    prev <span class="op">=</span> <span class="cn">Inf</span></span>
-<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">while</span> <span class="ex">true</span></span>
-<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>        y_prediction <span class="op">=</span> [nn(literal.(x))[<span class="fl">1</span>] <span class="kw">for</span> x <span class="kw">in</span> xs]</span>
-<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a>        loss <span class="op">=</span> lossfunc(y_prediction<span class="op">,</span> y_reference)</span>
-<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>        <span class="kw">if</span> stop(i<span class="op">,</span> prev<span class="op">,</span> loss.value)</span>
-<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a>            <span class="kw">break</span></span>
-<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
-<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a>        prev <span class="op">=</span> loss.value</span>
-<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a>        backpropagate(loss)</span>
-<span id="cb30-36"><a href="#cb30-36" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> p <span class="kw">in</span> ps</span>
-<span id="cb30-37"><a href="#cb30-37" aria-hidden="true" tabindex="-1"></a>            p.value <span class="op">-=</span> p.grad <span class="op">*</span> step</span>
-<span id="cb30-38"><a href="#cb30-38" aria-hidden="true" tabindex="-1"></a>            p.grad <span class="op">=</span> <span class="fl">0</span></span>
-<span id="cb30-39"><a href="#cb30-39" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
-<span id="cb30-40"><a href="#cb30-40" aria-hidden="true" tabindex="-1"></a>        i <span class="op">+=</span> <span class="fl">1</span></span>
-<span id="cb30-41"><a href="#cb30-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb30-42"><a href="#cb30-42" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb30-43"><a href="#cb30-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-44"><a href="#cb30-44" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
-<span id="cb30-45"><a href="#cb30-45" aria-hidden="true" tabindex="-1"></a>    f <span class="op">=</span> MLP{<span class="dt">Float64</span>}(<span class="fl">3</span><span class="op">,</span> [<span class="fl">4</span><span class="op">,</span> <span class="fl">4</span><span class="op">,</span> <span class="fl">1</span>])</span>
-<span id="cb30-46"><a href="#cb30-46" aria-hidden="true" tabindex="-1"></a>    xs <span class="op">=</span> [ <span class="fl">2.0</span>  <span class="fl">3.0</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">;</span></span>
-<span id="cb30-47"><a href="#cb30-47" aria-hidden="true" tabindex="-1"></a>           <span class="fl">3.0</span> <span class="op">-</span><span class="fl">1.0</span>  <span class="fl">0.5</span><span class="op">;</span></span>
-<span id="cb30-48"><a href="#cb30-48" aria-hidden="true" tabindex="-1"></a>           <span class="fl">0.5</span>  <span class="fl">1.0</span>  <span class="fl">1.0</span><span class="op">;</span></span>
-<span id="cb30-49"><a href="#cb30-49" aria-hidden="true" tabindex="-1"></a>           <span class="fl">1.0</span>  <span class="fl">1.0</span> <span class="op">-</span><span class="fl">1.0</span> ] <span class="op">|&gt;</span> eachrow <span class="op">|&gt;</span> collect</span>
-<span id="cb30-50"><a href="#cb30-50" aria-hidden="true" tabindex="-1"></a>    ys <span class="op">=</span> literal.([ <span class="fl">1.0</span><span class="op">,</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span> <span class="fl">1.0</span> ])</span>
-<span id="cb30-51"><a href="#cb30-51" aria-hidden="true" tabindex="-1"></a>    learn(f<span class="op">,</span> xs<span class="op">,</span> ys<span class="op">;</span> step<span class="op">=</span><span class="fl">0.1</span>)</span>
-<span id="cb30-52"><a href="#cb30-52" aria-hidden="true" tabindex="-1"></a>    println([f(literal.(x))[<span class="fl">1</span>].value <span class="kw">for</span> x <span class="kw">in</span> xs])</span>
-<span id="cb30-53"><a href="#cb30-53" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb30-54"><a href="#cb30-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-55"><a href="#cb30-55" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
-</div>
-</section>
-<section id="enumerate-parameters" class="level2">
-<h2>Enumerate parameters</h2>
-<div class="named-code-block">
-<p>«neuron»</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> parameters(n <span class="op">::</span> Neuron{T}) <span class="kw">where</span> T</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    [n.weights<span class="op">;</span> n.bias]</span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
-</div>
-<div class="named-code-block">
-<p>«layer»</p>
-<div class="sourceCode" id="cb32"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> parameters(l <span class="op">::</span> Layer{T}) <span class="kw">where</span> T</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>    vcat(parameters.(l.neurons)<span class="op">...</span>)</span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
-</div>
-<div class="named-code-block">
-<p>«mlp»</p>
-<div class="sourceCode" id="cb33"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> parameters(mlp <span class="op">::</span> MLP{T}) <span class="kw">where</span> T</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>    vcat(parameters.(mlp.layers)<span class="op">...</span>)</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb33"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> Printf<span class="op">:</span> <span class="pp">@sprintf</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> MLStyle<span class="op">:</span> <span class="pp">@match</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>include(<span class="st">&quot;Graphviz.jl&quot;</span>)</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> .Graphviz<span class="op">:</span> Graph<span class="op">,</span> digraph<span class="op">,</span> add_node<span class="op">,</span> add_edge<span class="op">,</span> add_attr</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>this<span class="op">-</span>and<span class="op">-</span>others<span class="op">&gt;&gt;</span></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>topo<span class="op">-</span>sort<span class="op">&gt;&gt;</span></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>visualize<span class="op">&gt;&gt;</span></span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>neuron<span class="op">&gt;&gt;</span></span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>layer<span class="op">&gt;&gt;</span></span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>mlp<span class="op">&gt;&gt;</span></span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> stop_after_n(n)</span>
+<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">function</span> (i<span class="op">,</span> _<span class="op">,</span> loss)</span>
+<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a>        i % <span class="fl">10</span> <span class="op">==</span> <span class="fl">0</span> <span class="op">&amp;&amp;</span> println(<span class="st">&quot;$(i:4) $(loss)&quot;</span>)</span>
+<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a>        i <span class="op">&gt;=</span> n</span>
+<span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb33-21"><a href="#cb33-21" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb33-22"><a href="#cb33-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-23"><a href="#cb33-23" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> learn(nn<span class="op">,</span> xs<span class="op">,</span> y_reference<span class="op">;</span> lossfunc<span class="op">=</span>errsqr_loss<span class="op">,</span> stop<span class="op">=</span>stop_after_n(<span class="fl">100</span>)<span class="op">,</span> step<span class="op">=</span><span class="fl">0.05</span>)</span>
+<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a>    ps <span class="op">=</span> parameters(nn)</span>
+<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a>    println(<span class="st">&quot;Network with $(length(ps)) free parameters.&quot;</span>)</span>
+<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a>    i <span class="op">=</span> <span class="fl">0</span></span>
+<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a>    prev <span class="op">=</span> <span class="cn">Inf</span></span>
+<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">while</span> <span class="ex">true</span></span>
+<span id="cb33-29"><a href="#cb33-29" aria-hidden="true" tabindex="-1"></a>        y_prediction <span class="op">=</span> [nn(literal.(x))[<span class="fl">1</span>] <span class="kw">for</span> x <span class="kw">in</span> xs]</span>
+<span id="cb33-30"><a href="#cb33-30" aria-hidden="true" tabindex="-1"></a>        loss <span class="op">=</span> lossfunc(y_prediction<span class="op">,</span> y_reference)</span>
+<span id="cb33-31"><a href="#cb33-31" aria-hidden="true" tabindex="-1"></a>        <span class="kw">if</span> stop(i<span class="op">,</span> prev<span class="op">,</span> loss.value)</span>
+<span id="cb33-32"><a href="#cb33-32" aria-hidden="true" tabindex="-1"></a>            <span class="kw">break</span></span>
+<span id="cb33-33"><a href="#cb33-33" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb33-34"><a href="#cb33-34" aria-hidden="true" tabindex="-1"></a>        prev <span class="op">=</span> loss.value</span>
+<span id="cb33-35"><a href="#cb33-35" aria-hidden="true" tabindex="-1"></a>        backpropagate(loss)</span>
+<span id="cb33-36"><a href="#cb33-36" aria-hidden="true" tabindex="-1"></a>        <span class="kw">for</span> p <span class="kw">in</span> ps</span>
+<span id="cb33-37"><a href="#cb33-37" aria-hidden="true" tabindex="-1"></a>            p.value <span class="op">-=</span> p.grad <span class="op">*</span> step</span>
+<span id="cb33-38"><a href="#cb33-38" aria-hidden="true" tabindex="-1"></a>            p.grad <span class="op">=</span> <span class="fl">0</span></span>
+<span id="cb33-39"><a href="#cb33-39" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb33-40"><a href="#cb33-40" aria-hidden="true" tabindex="-1"></a>        i <span class="op">+=</span> <span class="fl">1</span></span>
+<span id="cb33-41"><a href="#cb33-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb33-42"><a href="#cb33-42" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb33-43"><a href="#cb33-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-44"><a href="#cb33-44" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> main()</span>
+<span id="cb33-45"><a href="#cb33-45" aria-hidden="true" tabindex="-1"></a>    f <span class="op">=</span> MLP{<span class="dt">Float64</span>}(<span class="fl">3</span><span class="op">,</span> [<span class="fl">4</span><span class="op">,</span> <span class="fl">4</span><span class="op">,</span> <span class="fl">1</span>])</span>
+<span id="cb33-46"><a href="#cb33-46" aria-hidden="true" tabindex="-1"></a>    xs <span class="op">=</span> [ <span class="fl">2.0</span>  <span class="fl">3.0</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">;</span></span>
+<span id="cb33-47"><a href="#cb33-47" aria-hidden="true" tabindex="-1"></a>           <span class="fl">3.0</span> <span class="op">-</span><span class="fl">1.0</span>  <span class="fl">0.5</span><span class="op">;</span></span>
+<span id="cb33-48"><a href="#cb33-48" aria-hidden="true" tabindex="-1"></a>           <span class="fl">0.5</span>  <span class="fl">1.0</span>  <span class="fl">1.0</span><span class="op">;</span></span>
+<span id="cb33-49"><a href="#cb33-49" aria-hidden="true" tabindex="-1"></a>           <span class="fl">1.0</span>  <span class="fl">1.0</span> <span class="op">-</span><span class="fl">1.0</span> ] <span class="op">|&gt;</span> eachrow <span class="op">|&gt;</span> collect</span>
+<span id="cb33-50"><a href="#cb33-50" aria-hidden="true" tabindex="-1"></a>    ys <span class="op">=</span> literal.([ <span class="fl">1.0</span><span class="op">,</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span> <span class="op">-</span><span class="fl">1.0</span><span class="op">,</span> <span class="fl">1.0</span> ])</span>
+<span id="cb33-51"><a href="#cb33-51" aria-hidden="true" tabindex="-1"></a>    learn(f<span class="op">,</span> xs<span class="op">,</span> ys<span class="op">;</span> step<span class="op">=</span><span class="fl">0.1</span>)</span>
+<span id="cb33-52"><a href="#cb33-52" aria-hidden="true" tabindex="-1"></a>    println([f(literal.(x))[<span class="fl">1</span>].value <span class="kw">for</span> x <span class="kw">in</span> xs])</span>
+<span id="cb33-53"><a href="#cb33-53" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb33-54"><a href="#cb33-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-55"><a href="#cb33-55" aria-hidden="true" tabindex="-1"></a>main()</span></code></pre></div>
 </div>
 </section>
 </section>
-<section id="appendix-graphviz-module" class="level1">
-<h1>Appendix: Graphviz module</h1>
+<section id="appendix-a-micrograd-module" class="level1">
+<h1>Appendix A: MicroGrad module</h1>
+<div class="named-code-block">
+<p>file:src/MicroGrad.jl</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> MicroGrad</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>imports<span class="op">&gt;&gt;</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>value<span class="op">&gt;&gt;</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>topo<span class="op">-</span>sort<span class="op">&gt;&gt;</span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>backpropagate<span class="op">&gt;&gt;</span></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>visualize<span class="op">&gt;&gt;</span></span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>neuron<span class="op">&gt;&gt;</span></span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>layer<span class="op">&gt;&gt;</span></span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;&lt;</span>mlp<span class="op">&gt;&gt;</span></span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+</div>
+</section>
+<section id="appendix-b-graphviz-module" class="level1">
+<h1>Appendix B: Graphviz module</h1>
 <p>For those interested, here’s the source for <code>Graphviz.jl</code>.</p>
 <div class="named-code-block">
 <p>file:src/Graphviz.jl</p>
-<div class="sourceCode" id="cb34"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> Graphviz</span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="pp">@enum</span> GraphComponent c_graph c_node c_edge</span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> component_name <span class="op">=</span> <span class="dt">IdDict</span>(</span>
-<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>    c_graph <span class="op">=&gt;</span> <span class="st">&quot;graph&quot;</span><span class="op">,</span></span>
-<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    c_node <span class="op">=&gt;</span> <span class="st">&quot;node&quot;</span><span class="op">,</span></span>
-<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>    c_edge <span class="op">=&gt;</span> <span class="st">&quot;edge&quot;</span></span>
-<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> c <span class="op">::</span> GraphComponent) <span class="op">=</span> print(io<span class="op">,</span> component_name[c])</span>
-<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a><span class="pp">@enum</span> CompassPt c_n c_ne c_e c_se c_s c_sw c_w c_nw c_c c_empty</span>
-<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> compass_symb <span class="op">=</span> <span class="dt">IdDict</span>(</span>
-<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>    c_n <span class="op">=&gt;</span> <span class="st">&quot;n&quot;</span><span class="op">,</span> c_ne <span class="op">=&gt;</span> <span class="st">&quot;ne&quot;</span><span class="op">,</span> c_e <span class="op">=&gt;</span> <span class="st">&quot;e&quot;</span><span class="op">,</span> c_se <span class="op">=&gt;</span> <span class="st">&quot;se&quot;</span><span class="op">,</span> c_s <span class="op">=&gt;</span> <span class="st">&quot;s&quot;</span><span class="op">,</span></span>
-<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>    c_sw <span class="op">=&gt;</span> <span class="st">&quot;sw&quot;</span><span class="op">,</span> c_w <span class="op">=&gt;</span> <span class="st">&quot;w&quot;</span><span class="op">,</span> c_nw <span class="op">=&gt;</span> <span class="st">&quot;nw&quot;</span><span class="op">,</span> c_c <span class="op">=&gt;</span> <span class="st">&quot;c&quot;</span><span class="op">,</span> c_empty <span class="op">=&gt;</span> <span class="st">&quot;_&quot;</span></span>
-<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> c <span class="op">::</span> CompassPt) <span class="op">=</span> print(io<span class="op">,</span> compass_symb[c])</span>
-<span id="cb34-21"><a href="#cb34-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-22"><a href="#cb34-22" aria-hidden="true" tabindex="-1"></a><span class="kw">abstract type</span> Statement <span class="kw">end</span></span>
-<span id="cb34-23"><a href="#cb34-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-24"><a href="#cb34-24" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Subgraph <span class="op">&lt;:</span> Statement</span>
-<span id="cb34-25"><a href="#cb34-25" aria-hidden="true" tabindex="-1"></a>    name <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>}</span>
-<span id="cb34-26"><a href="#cb34-26" aria-hidden="true" tabindex="-1"></a>    stmt_lst <span class="op">::</span> <span class="dt">Vector</span>{Statement}</span>
-<span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-29"><a href="#cb34-29" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> AList</span>
-<span id="cb34-30"><a href="#cb34-30" aria-hidden="true" tabindex="-1"></a>    content <span class="op">::</span> <span class="dt">IdDict</span>{<span class="dt">Symbol</span><span class="op">,</span><span class="dt">String</span>}</span>
-<span id="cb34-31"><a href="#cb34-31" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-32"><a href="#cb34-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-33"><a href="#cb34-33" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> alst <span class="op">::</span> AList)</span>
-<span id="cb34-34"><a href="#cb34-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> (k<span class="op">,</span> v) <span class="kw">in</span> pairs(alst.content)</span>
-<span id="cb34-35"><a href="#cb34-35" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> k<span class="op">,</span> <span class="st">&quot;=</span><span class="sc">\&quot;</span><span class="st">&quot;</span><span class="op">,</span> v<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">;&quot;</span>)</span>
-<span id="cb34-36"><a href="#cb34-36" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb34-37"><a href="#cb34-37" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-38"><a href="#cb34-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-39"><a href="#cb34-39" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> NodeId</span>
-<span id="cb34-40"><a href="#cb34-40" aria-hidden="true" tabindex="-1"></a>    name <span class="op">::</span> <span class="dt">String</span></span>
-<span id="cb34-41"><a href="#cb34-41" aria-hidden="true" tabindex="-1"></a>    port <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span><span class="dt">Nothing</span>}</span>
-<span id="cb34-42"><a href="#cb34-42" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-43"><a href="#cb34-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-44"><a href="#cb34-44" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> NodeStmt <span class="op">&lt;:</span> Statement</span>
-<span id="cb34-45"><a href="#cb34-45" aria-hidden="true" tabindex="-1"></a>    id <span class="op">::</span> NodeId</span>
-<span id="cb34-46"><a href="#cb34-46" aria-hidden="true" tabindex="-1"></a>    attr_list <span class="op">::</span> <span class="dt">Vector</span>{AList}</span>
-<span id="cb34-47"><a href="#cb34-47" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-48"><a href="#cb34-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-49"><a href="#cb34-49" aria-hidden="true" tabindex="-1"></a>NodeOrSubgraph <span class="op">=</span> <span class="dt">Union</span>{NodeId<span class="op">,</span>Subgraph}</span>
-<span id="cb34-50"><a href="#cb34-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-51"><a href="#cb34-51" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> n <span class="op">::</span> NodeId)</span>
-<span id="cb34-52"><a href="#cb34-52" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">&quot;</span><span class="op">,</span> n.name<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">&quot;</span>)</span>
-<span id="cb34-53"><a href="#cb34-53" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> <span class="op">!</span>isnothing(n.port)</span>
-<span id="cb34-54"><a href="#cb34-54" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> n.port)</span>
-<span id="cb34-55"><a href="#cb34-55" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb34-56"><a href="#cb34-56" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-57"><a href="#cb34-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-58"><a href="#cb34-58" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> n <span class="op">::</span> NodeStmt)</span>
-<span id="cb34-59"><a href="#cb34-59" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> n.id)</span>
-<span id="cb34-60"><a href="#cb34-60" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> a <span class="kw">in</span> n.attr_list</span>
-<span id="cb34-61"><a href="#cb34-61" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;[&quot;</span><span class="op">,</span> a<span class="op">,</span> <span class="st">&quot;]&quot;</span>)</span>
-<span id="cb34-62"><a href="#cb34-62" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb34-63"><a href="#cb34-63" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-64"><a href="#cb34-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-65"><a href="#cb34-65" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> EdgeStmt <span class="op">&lt;:</span> Statement</span>
-<span id="cb34-66"><a href="#cb34-66" aria-hidden="true" tabindex="-1"></a>    is_directed <span class="op">::</span> <span class="dt">Bool</span></span>
-<span id="cb34-67"><a href="#cb34-67" aria-hidden="true" tabindex="-1"></a>    from <span class="op">::</span> <span class="dt">Union</span>{NodeId<span class="op">,</span>Subgraph}</span>
-<span id="cb34-68"><a href="#cb34-68" aria-hidden="true" tabindex="-1"></a>    to <span class="op">::</span> <span class="dt">Vector</span>{<span class="dt">Union</span>{NodeId<span class="op">,</span>Subgraph}}</span>
-<span id="cb34-69"><a href="#cb34-69" aria-hidden="true" tabindex="-1"></a>    attr_list <span class="op">::</span> <span class="dt">Vector</span>{AList}</span>
-<span id="cb34-70"><a href="#cb34-70" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-71"><a href="#cb34-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-72"><a href="#cb34-72" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> <span class="cn">e</span> <span class="op">::</span> EdgeStmt)</span>
-<span id="cb34-73"><a href="#cb34-73" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="cn">e</span>.from)</span>
-<span id="cb34-74"><a href="#cb34-74" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> <span class="cn">e</span>.to</span>
-<span id="cb34-75"><a href="#cb34-75" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="cn">e</span>.is_directed ? <span class="st">&quot;-&gt;&quot;</span> <span class="op">:</span> <span class="st">&quot;--&quot;</span><span class="op">,</span> n)</span>
-<span id="cb34-76"><a href="#cb34-76" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb34-77"><a href="#cb34-77" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> a <span class="kw">in</span> <span class="cn">e</span>.attr_list</span>
-<span id="cb34-78"><a href="#cb34-78" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;[&quot;</span><span class="op">,</span> a<span class="op">,</span> <span class="st">&quot;]&quot;</span>)</span>
-<span id="cb34-79"><a href="#cb34-79" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb34-80"><a href="#cb34-80" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-81"><a href="#cb34-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-82"><a href="#cb34-82" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> AttrStmt <span class="op">&lt;:</span> Statement</span>
-<span id="cb34-83"><a href="#cb34-83" aria-hidden="true" tabindex="-1"></a>    component <span class="op">::</span> GraphComponent</span>
-<span id="cb34-84"><a href="#cb34-84" aria-hidden="true" tabindex="-1"></a>    attr_list <span class="op">::</span> <span class="dt">Vector</span>{AList}</span>
-<span id="cb34-85"><a href="#cb34-85" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-86"><a href="#cb34-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-87"><a href="#cb34-87" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> a <span class="op">::</span> AttrStmt)</span>
-<span id="cb34-88"><a href="#cb34-88" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> component_name[a.component])</span>
-<span id="cb34-89"><a href="#cb34-89" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> attr <span class="kw">in</span> a.attr_list</span>
-<span id="cb34-90"><a href="#cb34-90" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;[&quot;</span><span class="op">,</span> attr<span class="op">,</span> <span class="st">&quot;]&quot;</span>)</span>
-<span id="cb34-91"><a href="#cb34-91" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb34-92"><a href="#cb34-92" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-93"><a href="#cb34-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-94"><a href="#cb34-94" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> IdentityStmt <span class="op">&lt;:</span> Statement</span>
-<span id="cb34-95"><a href="#cb34-95" aria-hidden="true" tabindex="-1"></a>    first <span class="op">::</span> <span class="dt">String</span></span>
-<span id="cb34-96"><a href="#cb34-96" aria-hidden="true" tabindex="-1"></a>    second <span class="op">::</span> <span class="dt">String</span></span>
-<span id="cb34-97"><a href="#cb34-97" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-98"><a href="#cb34-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-99"><a href="#cb34-99" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> i <span class="op">::</span> IdentityStmt)</span>
-<span id="cb34-100"><a href="#cb34-100" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> i.first<span class="op">,</span> <span class="st">&quot;=</span><span class="sc">\&quot;</span><span class="st">&quot;</span><span class="op">,</span> i.second<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">&quot;</span>)</span>
-<span id="cb34-101"><a href="#cb34-101" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-102"><a href="#cb34-102" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-103"><a href="#cb34-103" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> s <span class="op">::</span> Subgraph)</span>
-<span id="cb34-104"><a href="#cb34-104" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;subgraph &quot;</span>)</span>
-<span id="cb34-105"><a href="#cb34-105" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> <span class="op">!</span>isnothing(s.name)</span>
-<span id="cb34-106"><a href="#cb34-106" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> s.name<span class="op">,</span> <span class="st">&quot; &quot;</span>)</span>
-<span id="cb34-107"><a href="#cb34-107" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb34-108"><a href="#cb34-108" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;{</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb34-109"><a href="#cb34-109" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> s <span class="kw">in</span> s.stmt_lst</span>
-<span id="cb34-110"><a href="#cb34-110" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;  &quot;</span><span class="op">,</span> s<span class="op">,</span> <span class="st">&quot;;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb34-111"><a href="#cb34-111" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb34-112"><a href="#cb34-112" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;}</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb34-113"><a href="#cb34-113" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-114"><a href="#cb34-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-115"><a href="#cb34-115" aria-hidden="true" tabindex="-1"></a><span class="kw">mutable struct</span> Graph</span>
-<span id="cb34-116"><a href="#cb34-116" aria-hidden="true" tabindex="-1"></a>    is_strict <span class="op">::</span> <span class="dt">Bool</span></span>
-<span id="cb34-117"><a href="#cb34-117" aria-hidden="true" tabindex="-1"></a>    is_directed <span class="op">::</span> <span class="dt">Bool</span></span>
-<span id="cb34-118"><a href="#cb34-118" aria-hidden="true" tabindex="-1"></a>    name <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>}</span>
-<span id="cb34-119"><a href="#cb34-119" aria-hidden="true" tabindex="-1"></a>    stmt_list <span class="op">::</span> <span class="dt">Vector</span>{Statement}</span>
-<span id="cb34-120"><a href="#cb34-120" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-121"><a href="#cb34-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-122"><a href="#cb34-122" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> g <span class="op">::</span> Graph)</span>
-<span id="cb34-123"><a href="#cb34-123" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> g.is_strict ? <span class="st">&quot;strict &quot;</span> <span class="op">:</span> <span class="st">&quot;&quot;</span><span class="op">,</span></span>
-<span id="cb34-124"><a href="#cb34-124" aria-hidden="true" tabindex="-1"></a>              g.is_directed ? <span class="st">&quot;digraph &quot;</span> <span class="op">:</span> <span class="st">&quot;graph &quot;</span><span class="op">,</span></span>
-<span id="cb34-125"><a href="#cb34-125" aria-hidden="true" tabindex="-1"></a>              <span class="op">!</span>isnothing(g.name) ? name <span class="op">*</span> <span class="st">&quot; &quot;</span> <span class="op">:</span> <span class="st">&quot;&quot;</span><span class="op">,</span></span>
-<span id="cb34-126"><a href="#cb34-126" aria-hidden="true" tabindex="-1"></a>              <span class="st">&quot;{</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb34-127"><a href="#cb34-127" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> s <span class="kw">in</span> g.stmt_list</span>
-<span id="cb34-128"><a href="#cb34-128" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;  &quot;</span><span class="op">,</span> s<span class="op">,</span> <span class="st">&quot;;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb34-129"><a href="#cb34-129" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
-<span id="cb34-130"><a href="#cb34-130" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;}</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb34-131"><a href="#cb34-131" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-132"><a href="#cb34-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-133"><a href="#cb34-133" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> graph(name <span class="op">=</span> <span class="cn">nothing</span><span class="op">;</span> kwargs <span class="op">...</span>)</span>
-<span id="cb34-134"><a href="#cb34-134" aria-hidden="true" tabindex="-1"></a>    Graph(<span class="ex">false</span><span class="op">,</span> <span class="ex">false</span><span class="op">,</span> name<span class="op">,</span> []) <span class="op">|&gt;</span> add_attr(c_graph<span class="op">;</span> kwargs <span class="op">...</span>)</span>
-<span id="cb34-135"><a href="#cb34-135" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-136"><a href="#cb34-136" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-137"><a href="#cb34-137" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> digraph(name <span class="op">=</span> <span class="cn">nothing</span><span class="op">;</span> kwargs <span class="op">...</span>)</span>
-<span id="cb34-138"><a href="#cb34-138" aria-hidden="true" tabindex="-1"></a>    Graph(<span class="ex">false</span><span class="op">,</span> <span class="ex">true</span> <span class="op">,</span> name<span class="op">,</span> []) <span class="op">|&gt;</span> add_attr(c_graph<span class="op">;</span> kwargs <span class="op">...</span>)</span>
-<span id="cb34-139"><a href="#cb34-139" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-140"><a href="#cb34-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-141"><a href="#cb34-141" aria-hidden="true" tabindex="-1"></a>strict(g <span class="op">::</span> Graph) <span class="op">=</span> <span class="kw">begin</span> g.is_strict <span class="op">=</span> True<span class="op">;</span> g <span class="kw">end</span></span>
-<span id="cb34-142"><a href="#cb34-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-143"><a href="#cb34-143" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_node(id <span class="op">::</span> <span class="dt">String</span><span class="op">,</span> port <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>} <span class="op">=</span> <span class="cn">nothing</span><span class="op">;</span> kwargs <span class="op">...</span>)</span>
-<span id="cb34-144"><a href="#cb34-144" aria-hidden="true" tabindex="-1"></a>    g <span class="op">-&gt;</span> <span class="kw">begin</span> push<span class="op">!</span>(g.stmt_list<span class="op">,</span> NodeStmt(NodeId(id<span class="op">,</span> port)<span class="op">,</span> [AList(kwargs)]))<span class="op">;</span> g <span class="kw">end</span></span>
-<span id="cb34-145"><a href="#cb34-145" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-146"><a href="#cb34-146" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-147"><a href="#cb34-147" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_edge(from <span class="op">::</span> <span class="dt">String</span><span class="op">,</span> to <span class="op">::</span> <span class="dt">String</span> <span class="op">...;</span> kwargs <span class="op">...</span>)</span>
-<span id="cb34-148"><a href="#cb34-148" aria-hidden="true" tabindex="-1"></a>    add_edge(NodeId(from<span class="op">,</span> <span class="cn">nothing</span>)<span class="op">,</span> NodeOrSubgraph[NodeId(n<span class="op">,</span> <span class="cn">nothing</span>) <span class="kw">for</span> n <span class="kw">in</span> to]<span class="op">;</span> kwargs <span class="op">...</span>)</span>
-<span id="cb34-149"><a href="#cb34-149" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-150"><a href="#cb34-150" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-151"><a href="#cb34-151" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_edge(from<span class="op">::</span>NodeOrSubgraph<span class="op">,</span> to<span class="op">::</span><span class="dt">Vector</span>{NodeOrSubgraph}<span class="op">;</span> kwargs <span class="op">...</span>)</span>
-<span id="cb34-152"><a href="#cb34-152" aria-hidden="true" tabindex="-1"></a>    g <span class="op">-&gt;</span> <span class="kw">begin</span> push<span class="op">!</span>(g.stmt_list<span class="op">,</span> EdgeStmt(g.is_directed<span class="op">,</span> from<span class="op">,</span> to<span class="op">,</span> [AList(kwargs)]))<span class="op">;</span> g <span class="kw">end</span></span>
-<span id="cb34-153"><a href="#cb34-153" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-154"><a href="#cb34-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-155"><a href="#cb34-155" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_attr(comp <span class="op">::</span> GraphComponent<span class="op">;</span> attrs <span class="op">...</span>)</span>
-<span id="cb34-156"><a href="#cb34-156" aria-hidden="true" tabindex="-1"></a>    g <span class="op">-&gt;</span> <span class="kw">begin</span> push<span class="op">!</span>(g.stmt_list<span class="op">,</span> AttrStmt(comp<span class="op">,</span>[AList(<span class="dt">IdDict</span>(attrs))]))<span class="op">;</span> g <span class="kw">end</span></span>
-<span id="cb34-157"><a href="#cb34-157" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb34-158"><a href="#cb34-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-159"><a href="#cb34-159" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+<div class="sourceCode" id="cb35"><pre class="sourceCode julia"><code class="sourceCode julia"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> Graphviz</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="pp">@enum</span> GraphComponent c_graph c_node c_edge</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> component_name <span class="op">=</span> <span class="dt">IdDict</span>(</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    c_graph <span class="op">=&gt;</span> <span class="st">&quot;graph&quot;</span><span class="op">,</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>    c_node <span class="op">=&gt;</span> <span class="st">&quot;node&quot;</span><span class="op">,</span></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>    c_edge <span class="op">=&gt;</span> <span class="st">&quot;edge&quot;</span></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> c <span class="op">::</span> GraphComponent) <span class="op">=</span> print(io<span class="op">,</span> component_name[c])</span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a><span class="pp">@enum</span> CompassPt c_n c_ne c_e c_se c_s c_sw c_w c_nw c_c c_empty</span>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> compass_symb <span class="op">=</span> <span class="dt">IdDict</span>(</span>
+<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>    c_n <span class="op">=&gt;</span> <span class="st">&quot;n&quot;</span><span class="op">,</span> c_ne <span class="op">=&gt;</span> <span class="st">&quot;ne&quot;</span><span class="op">,</span> c_e <span class="op">=&gt;</span> <span class="st">&quot;e&quot;</span><span class="op">,</span> c_se <span class="op">=&gt;</span> <span class="st">&quot;se&quot;</span><span class="op">,</span> c_s <span class="op">=&gt;</span> <span class="st">&quot;s&quot;</span><span class="op">,</span></span>
+<span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a>    c_sw <span class="op">=&gt;</span> <span class="st">&quot;sw&quot;</span><span class="op">,</span> c_w <span class="op">=&gt;</span> <span class="st">&quot;w&quot;</span><span class="op">,</span> c_nw <span class="op">=&gt;</span> <span class="st">&quot;nw&quot;</span><span class="op">,</span> c_c <span class="op">=&gt;</span> <span class="st">&quot;c&quot;</span><span class="op">,</span> c_empty <span class="op">=&gt;</span> <span class="st">&quot;_&quot;</span></span>
+<span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-20"><a href="#cb35-20" aria-hidden="true" tabindex="-1"></a><span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> c <span class="op">::</span> CompassPt) <span class="op">=</span> print(io<span class="op">,</span> compass_symb[c])</span>
+<span id="cb35-21"><a href="#cb35-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-22"><a href="#cb35-22" aria-hidden="true" tabindex="-1"></a><span class="kw">abstract type</span> Statement <span class="kw">end</span></span>
+<span id="cb35-23"><a href="#cb35-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-24"><a href="#cb35-24" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Subgraph <span class="op">&lt;:</span> Statement</span>
+<span id="cb35-25"><a href="#cb35-25" aria-hidden="true" tabindex="-1"></a>    name <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>}</span>
+<span id="cb35-26"><a href="#cb35-26" aria-hidden="true" tabindex="-1"></a>    stmt_lst <span class="op">::</span> <span class="dt">Vector</span>{Statement}</span>
+<span id="cb35-27"><a href="#cb35-27" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-28"><a href="#cb35-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-29"><a href="#cb35-29" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> AList</span>
+<span id="cb35-30"><a href="#cb35-30" aria-hidden="true" tabindex="-1"></a>    content <span class="op">::</span> <span class="dt">IdDict</span>{<span class="dt">Symbol</span><span class="op">,</span><span class="dt">String</span>}</span>
+<span id="cb35-31"><a href="#cb35-31" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-32"><a href="#cb35-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-33"><a href="#cb35-33" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> alst <span class="op">::</span> AList)</span>
+<span id="cb35-34"><a href="#cb35-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> (k<span class="op">,</span> v) <span class="kw">in</span> pairs(alst.content)</span>
+<span id="cb35-35"><a href="#cb35-35" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> k<span class="op">,</span> <span class="st">&quot;=</span><span class="sc">\&quot;</span><span class="st">&quot;</span><span class="op">,</span> v<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">;&quot;</span>)</span>
+<span id="cb35-36"><a href="#cb35-36" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-37"><a href="#cb35-37" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-38"><a href="#cb35-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-39"><a href="#cb35-39" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> NodeId</span>
+<span id="cb35-40"><a href="#cb35-40" aria-hidden="true" tabindex="-1"></a>    name <span class="op">::</span> <span class="dt">String</span></span>
+<span id="cb35-41"><a href="#cb35-41" aria-hidden="true" tabindex="-1"></a>    port <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span><span class="dt">Nothing</span>}</span>
+<span id="cb35-42"><a href="#cb35-42" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-43"><a href="#cb35-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-44"><a href="#cb35-44" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> NodeStmt <span class="op">&lt;:</span> Statement</span>
+<span id="cb35-45"><a href="#cb35-45" aria-hidden="true" tabindex="-1"></a>    id <span class="op">::</span> NodeId</span>
+<span id="cb35-46"><a href="#cb35-46" aria-hidden="true" tabindex="-1"></a>    attr_list <span class="op">::</span> <span class="dt">Vector</span>{AList}</span>
+<span id="cb35-47"><a href="#cb35-47" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-48"><a href="#cb35-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-49"><a href="#cb35-49" aria-hidden="true" tabindex="-1"></a>NodeOrSubgraph <span class="op">=</span> <span class="dt">Union</span>{NodeId<span class="op">,</span>Subgraph}</span>
+<span id="cb35-50"><a href="#cb35-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-51"><a href="#cb35-51" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> n <span class="op">::</span> NodeId)</span>
+<span id="cb35-52"><a href="#cb35-52" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">&quot;</span><span class="op">,</span> n.name<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">&quot;</span>)</span>
+<span id="cb35-53"><a href="#cb35-53" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> <span class="op">!</span>isnothing(n.port)</span>
+<span id="cb35-54"><a href="#cb35-54" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> n.port)</span>
+<span id="cb35-55"><a href="#cb35-55" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-56"><a href="#cb35-56" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-57"><a href="#cb35-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-58"><a href="#cb35-58" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> n <span class="op">::</span> NodeStmt)</span>
+<span id="cb35-59"><a href="#cb35-59" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> n.id)</span>
+<span id="cb35-60"><a href="#cb35-60" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> a <span class="kw">in</span> n.attr_list</span>
+<span id="cb35-61"><a href="#cb35-61" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;[&quot;</span><span class="op">,</span> a<span class="op">,</span> <span class="st">&quot;]&quot;</span>)</span>
+<span id="cb35-62"><a href="#cb35-62" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-63"><a href="#cb35-63" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-64"><a href="#cb35-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-65"><a href="#cb35-65" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> EdgeStmt <span class="op">&lt;:</span> Statement</span>
+<span id="cb35-66"><a href="#cb35-66" aria-hidden="true" tabindex="-1"></a>    is_directed <span class="op">::</span> <span class="dt">Bool</span></span>
+<span id="cb35-67"><a href="#cb35-67" aria-hidden="true" tabindex="-1"></a>    from <span class="op">::</span> <span class="dt">Union</span>{NodeId<span class="op">,</span>Subgraph}</span>
+<span id="cb35-68"><a href="#cb35-68" aria-hidden="true" tabindex="-1"></a>    to <span class="op">::</span> <span class="dt">Vector</span>{<span class="dt">Union</span>{NodeId<span class="op">,</span>Subgraph}}</span>
+<span id="cb35-69"><a href="#cb35-69" aria-hidden="true" tabindex="-1"></a>    attr_list <span class="op">::</span> <span class="dt">Vector</span>{AList}</span>
+<span id="cb35-70"><a href="#cb35-70" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-71"><a href="#cb35-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-72"><a href="#cb35-72" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> <span class="cn">e</span> <span class="op">::</span> EdgeStmt)</span>
+<span id="cb35-73"><a href="#cb35-73" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="cn">e</span>.from)</span>
+<span id="cb35-74"><a href="#cb35-74" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> n <span class="kw">in</span> <span class="cn">e</span>.to</span>
+<span id="cb35-75"><a href="#cb35-75" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="cn">e</span>.is_directed ? <span class="st">&quot;-&gt;&quot;</span> <span class="op">:</span> <span class="st">&quot;--&quot;</span><span class="op">,</span> n)</span>
+<span id="cb35-76"><a href="#cb35-76" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-77"><a href="#cb35-77" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> a <span class="kw">in</span> <span class="cn">e</span>.attr_list</span>
+<span id="cb35-78"><a href="#cb35-78" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;[&quot;</span><span class="op">,</span> a<span class="op">,</span> <span class="st">&quot;]&quot;</span>)</span>
+<span id="cb35-79"><a href="#cb35-79" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-80"><a href="#cb35-80" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-81"><a href="#cb35-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-82"><a href="#cb35-82" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> AttrStmt <span class="op">&lt;:</span> Statement</span>
+<span id="cb35-83"><a href="#cb35-83" aria-hidden="true" tabindex="-1"></a>    component <span class="op">::</span> GraphComponent</span>
+<span id="cb35-84"><a href="#cb35-84" aria-hidden="true" tabindex="-1"></a>    attr_list <span class="op">::</span> <span class="dt">Vector</span>{AList}</span>
+<span id="cb35-85"><a href="#cb35-85" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-86"><a href="#cb35-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-87"><a href="#cb35-87" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> a <span class="op">::</span> AttrStmt)</span>
+<span id="cb35-88"><a href="#cb35-88" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> component_name[a.component])</span>
+<span id="cb35-89"><a href="#cb35-89" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> attr <span class="kw">in</span> a.attr_list</span>
+<span id="cb35-90"><a href="#cb35-90" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;[&quot;</span><span class="op">,</span> attr<span class="op">,</span> <span class="st">&quot;]&quot;</span>)</span>
+<span id="cb35-91"><a href="#cb35-91" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-92"><a href="#cb35-92" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-93"><a href="#cb35-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-94"><a href="#cb35-94" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> IdentityStmt <span class="op">&lt;:</span> Statement</span>
+<span id="cb35-95"><a href="#cb35-95" aria-hidden="true" tabindex="-1"></a>    first <span class="op">::</span> <span class="dt">String</span></span>
+<span id="cb35-96"><a href="#cb35-96" aria-hidden="true" tabindex="-1"></a>    second <span class="op">::</span> <span class="dt">String</span></span>
+<span id="cb35-97"><a href="#cb35-97" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-98"><a href="#cb35-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-99"><a href="#cb35-99" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> i <span class="op">::</span> IdentityStmt)</span>
+<span id="cb35-100"><a href="#cb35-100" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> i.first<span class="op">,</span> <span class="st">&quot;=</span><span class="sc">\&quot;</span><span class="st">&quot;</span><span class="op">,</span> i.second<span class="op">,</span> <span class="st">&quot;</span><span class="sc">\&quot;</span><span class="st">&quot;</span>)</span>
+<span id="cb35-101"><a href="#cb35-101" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-102"><a href="#cb35-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-103"><a href="#cb35-103" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> s <span class="op">::</span> Subgraph)</span>
+<span id="cb35-104"><a href="#cb35-104" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;subgraph &quot;</span>)</span>
+<span id="cb35-105"><a href="#cb35-105" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> <span class="op">!</span>isnothing(s.name)</span>
+<span id="cb35-106"><a href="#cb35-106" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> s.name<span class="op">,</span> <span class="st">&quot; &quot;</span>)</span>
+<span id="cb35-107"><a href="#cb35-107" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-108"><a href="#cb35-108" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;{</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb35-109"><a href="#cb35-109" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> s <span class="kw">in</span> s.stmt_lst</span>
+<span id="cb35-110"><a href="#cb35-110" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;  &quot;</span><span class="op">,</span> s<span class="op">,</span> <span class="st">&quot;;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb35-111"><a href="#cb35-111" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-112"><a href="#cb35-112" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;}</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb35-113"><a href="#cb35-113" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-114"><a href="#cb35-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-115"><a href="#cb35-115" aria-hidden="true" tabindex="-1"></a><span class="kw">mutable struct</span> Graph</span>
+<span id="cb35-116"><a href="#cb35-116" aria-hidden="true" tabindex="-1"></a>    is_strict <span class="op">::</span> <span class="dt">Bool</span></span>
+<span id="cb35-117"><a href="#cb35-117" aria-hidden="true" tabindex="-1"></a>    is_directed <span class="op">::</span> <span class="dt">Bool</span></span>
+<span id="cb35-118"><a href="#cb35-118" aria-hidden="true" tabindex="-1"></a>    name <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>}</span>
+<span id="cb35-119"><a href="#cb35-119" aria-hidden="true" tabindex="-1"></a>    stmt_list <span class="op">::</span> <span class="dt">Vector</span>{Statement}</span>
+<span id="cb35-120"><a href="#cb35-120" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-121"><a href="#cb35-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-122"><a href="#cb35-122" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="bu">Base</span>.show(io <span class="op">::</span> <span class="dt">IO</span><span class="op">,</span> g <span class="op">::</span> Graph)</span>
+<span id="cb35-123"><a href="#cb35-123" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> g.is_strict ? <span class="st">&quot;strict &quot;</span> <span class="op">:</span> <span class="st">&quot;&quot;</span><span class="op">,</span></span>
+<span id="cb35-124"><a href="#cb35-124" aria-hidden="true" tabindex="-1"></a>              g.is_directed ? <span class="st">&quot;digraph &quot;</span> <span class="op">:</span> <span class="st">&quot;graph &quot;</span><span class="op">,</span></span>
+<span id="cb35-125"><a href="#cb35-125" aria-hidden="true" tabindex="-1"></a>              <span class="op">!</span>isnothing(g.name) ? name <span class="op">*</span> <span class="st">&quot; &quot;</span> <span class="op">:</span> <span class="st">&quot;&quot;</span><span class="op">,</span></span>
+<span id="cb35-126"><a href="#cb35-126" aria-hidden="true" tabindex="-1"></a>              <span class="st">&quot;{</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb35-127"><a href="#cb35-127" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> s <span class="kw">in</span> g.stmt_list</span>
+<span id="cb35-128"><a href="#cb35-128" aria-hidden="true" tabindex="-1"></a>        print(io<span class="op">,</span> <span class="st">&quot;  &quot;</span><span class="op">,</span> s<span class="op">,</span> <span class="st">&quot;;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb35-129"><a href="#cb35-129" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-130"><a href="#cb35-130" aria-hidden="true" tabindex="-1"></a>    print(io<span class="op">,</span> <span class="st">&quot;}</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb35-131"><a href="#cb35-131" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-132"><a href="#cb35-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-133"><a href="#cb35-133" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> graph(name <span class="op">=</span> <span class="cn">nothing</span><span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb35-134"><a href="#cb35-134" aria-hidden="true" tabindex="-1"></a>    Graph(<span class="ex">false</span><span class="op">,</span> <span class="ex">false</span><span class="op">,</span> name<span class="op">,</span> []) <span class="op">|&gt;</span> add_attr(c_graph<span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb35-135"><a href="#cb35-135" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-136"><a href="#cb35-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-137"><a href="#cb35-137" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> digraph(name <span class="op">=</span> <span class="cn">nothing</span><span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb35-138"><a href="#cb35-138" aria-hidden="true" tabindex="-1"></a>    Graph(<span class="ex">false</span><span class="op">,</span> <span class="ex">true</span> <span class="op">,</span> name<span class="op">,</span> []) <span class="op">|&gt;</span> add_attr(c_graph<span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb35-139"><a href="#cb35-139" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-140"><a href="#cb35-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-141"><a href="#cb35-141" aria-hidden="true" tabindex="-1"></a>strict(g <span class="op">::</span> Graph) <span class="op">=</span> <span class="kw">begin</span> g.is_strict <span class="op">=</span> True<span class="op">;</span> g <span class="kw">end</span></span>
+<span id="cb35-142"><a href="#cb35-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-143"><a href="#cb35-143" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_node(id <span class="op">::</span> <span class="dt">String</span><span class="op">,</span> port <span class="op">::</span> <span class="dt">Union</span>{<span class="dt">String</span><span class="op">,</span> <span class="dt">Nothing</span>} <span class="op">=</span> <span class="cn">nothing</span><span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb35-144"><a href="#cb35-144" aria-hidden="true" tabindex="-1"></a>    g <span class="op">-&gt;</span> <span class="kw">begin</span> push<span class="op">!</span>(g.stmt_list<span class="op">,</span> NodeStmt(NodeId(id<span class="op">,</span> port)<span class="op">,</span> [AList(kwargs)]))<span class="op">;</span> g <span class="kw">end</span></span>
+<span id="cb35-145"><a href="#cb35-145" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-146"><a href="#cb35-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-147"><a href="#cb35-147" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_edge(from <span class="op">::</span> <span class="dt">String</span><span class="op">,</span> to <span class="op">::</span> <span class="dt">String</span> <span class="op">...;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb35-148"><a href="#cb35-148" aria-hidden="true" tabindex="-1"></a>    add_edge(NodeId(from<span class="op">,</span> <span class="cn">nothing</span>)<span class="op">,</span> NodeOrSubgraph[NodeId(n<span class="op">,</span> <span class="cn">nothing</span>) <span class="kw">for</span> n <span class="kw">in</span> to]<span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb35-149"><a href="#cb35-149" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-150"><a href="#cb35-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-151"><a href="#cb35-151" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_edge(from<span class="op">::</span>NodeOrSubgraph<span class="op">,</span> to<span class="op">::</span><span class="dt">Vector</span>{NodeOrSubgraph}<span class="op">;</span> kwargs <span class="op">...</span>)</span>
+<span id="cb35-152"><a href="#cb35-152" aria-hidden="true" tabindex="-1"></a>    g <span class="op">-&gt;</span> <span class="kw">begin</span> push<span class="op">!</span>(g.stmt_list<span class="op">,</span> EdgeStmt(g.is_directed<span class="op">,</span> from<span class="op">,</span> to<span class="op">,</span> [AList(kwargs)]))<span class="op">;</span> g <span class="kw">end</span></span>
+<span id="cb35-153"><a href="#cb35-153" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-154"><a href="#cb35-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-155"><a href="#cb35-155" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> add_attr(comp <span class="op">::</span> GraphComponent<span class="op">;</span> attrs <span class="op">...</span>)</span>
+<span id="cb35-156"><a href="#cb35-156" aria-hidden="true" tabindex="-1"></a>    g <span class="op">-&gt;</span> <span class="kw">begin</span> push<span class="op">!</span>(g.stmt_list<span class="op">,</span> AttrStmt(comp<span class="op">,</span>[AList(<span class="dt">IdDict</span>(attrs))]))<span class="op">;</span> g <span class="kw">end</span></span>
+<span id="cb35-157"><a href="#cb35-157" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-158"><a href="#cb35-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-159"><a href="#cb35-159" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
 </div>
 </section>
         </div>
@@ -829,17 +842,17 @@ $$(uv)' = u'v + uv'.$$
                                 <li><a href="#first-example">First example</a></li>
                                 <li><a href="#plotting-tree-in-graphviz">Plotting tree in <code>graphviz</code></a></li>
                                 <li><a href="#a-neuron">A Neuron</a></li>
-                                <li><a href="#multi-path-dependencies">Multi-path dependencies</a></li>
                                 <li><a href="#more-derivatives">More derivatives</a></li>
                                 <li><a href="#building-a-neural-net">Building a neural net</a>
                                 <ul>
                                 <li><a href="#neuron">Neuron</a></li>
                                 <li><a href="#layer">Layer</a></li>
                                 <li><a href="#multi-layer-perceptron">Multi-layer perceptron</a></li>
-                                <li><a href="#write-a-loss-function">Write a loss function</a></li>
                                 <li><a href="#enumerate-parameters">Enumerate parameters</a></li>
+                                <li><a href="#write-a-loss-function">Write a loss function</a></li>
                                 </ul></li>
-                                <li><a href="#appendix-graphviz-module">Appendix: Graphviz module</a></li>
+                                <li><a href="#appendix-a-micrograd-module">Appendix A: MicroGrad module</a></li>
+                                <li><a href="#appendix-b-graphviz-module">Appendix B: Graphviz module</a></li>
                                 </ul>
                 </nav></div>
         </div> 

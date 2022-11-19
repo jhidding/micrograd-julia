@@ -1,9 +1,13 @@
-# ~\~ language=Julia filename=src/viz_example3.jl
-# ~\~ begin <<README.md|src/viz_example3.jl>>[init]
+# ~\~ language=Julia filename=src/MicroGrad.jl
+# ~\~ begin <<README.md|src/MicroGrad.jl>>[init]
+module MicroGrad
+
+# ~\~ begin <<README.md|imports>>[init]
 using Printf: @sprintf
-using MLStyle: @match
 include("Graphviz.jl")
 using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
+# using MLStyle: @match
+# ~\~ end
 
 # ~\~ begin <<README.md|value>>[init]
 mutable struct Value{T}
@@ -63,15 +67,6 @@ Base.:-(a::Value{T}, b::U) where {T, U <: Number} = a - literal(convert(T,b))
 Base.:+(a::Value{T}, b::U) where {T, U <: Number} = a + literal(convert(T,b))
 Base.:^(a::Value{T}, b::U) where {T, U <: Integer} = Value{T}(a.value^b, :(x^$(b)), [a])
 # ~\~ end
-# ~\~ begin <<README.md|this-and-others>>[init]
-function this_and_others(v :: Vector{T}) where T
-    Channel() do chan
-        for (idx, x) in enumerate(v)
-            put!(chan, (x, [v[1:idx-1];v[idx+1:end]]))
-        end
-    end
-end
-# ~\~ end
 # ~\~ begin <<README.md|topo-sort>>[init]
 function topo_sort(node, children = n -> n.children, visited = nothing)
     visited = isnothing(visited) ? [] : visited
@@ -106,6 +101,16 @@ const derivatives = IdDict(
 )
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[1]
+# ~\~ begin <<README.md|this-and-others>>[init]
+function this_and_others(v :: Vector{T}) where T
+    Channel() do chan
+        for (idx, x) in enumerate(v)
+            put!(chan, (x, [v[1:idx-1];v[idx+1:end]]))
+        end
+    end
+end
+# ~\~ end
+
 function backpropagate(v :: Value{T}) where T
     v.grad = one(T)
     for n in Iterators.reverse(collect(topo_sort(v)))
@@ -117,10 +122,11 @@ end
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[2]
 function derive(expr :: Expr)
-    @match expr begin
-        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
-        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
-    end
+    (x, _) -> 2 * x
+    #    @match expr begin
+#        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
+#        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
+#    end
 end
 # ~\~ end
 # ~\~ begin <<README.md|visualize>>[init]
@@ -144,14 +150,73 @@ function visualize(v::Value{T}) where T
 end
 # ~\~ end
 
-function main()
-    # ~\~ begin <<README.md|example-3>>[init]
-    a = literal(1.0) |> label("a")
-    b = a + a |> label("b")
-    backpropagate(b)
-    # ~\~ end
-    print(visualize(b))
+# ~\~ begin <<README.md|neuron>>[init]
+struct Neuron{T}
+    weights :: Vector{Value{T}}
+    bias :: Value{T}
 end
 
-main()
+Neuron{T}(n::Int) where T <: Real =
+    Neuron{T}(
+        [literal(rand() * 2 - 1) |> label("w$(i)") for i in 1:n],
+        literal(rand() * 2 - 1) |> label("bias"))
+
+function (n::Neuron{T})(x::Vector{Value{T}}) where T <: Real
+    tanh(sum(n.weights .* x; init = n.bias))
+end
+# ~\~ end
+# ~\~ begin <<README.md|neuron>>[1]
+function parameters(n :: Neuron{T}) where T
+    [n.weights; n.bias]
+end
+# ~\~ end
+# ~\~ begin <<README.md|layer>>[init]
+struct Layer{T}
+    neurons :: Vector{Neuron{T}}
+end
+
+Layer{T}(n_in::Int, n_out::Int) where T <: Real =
+    Layer{T}([Neuron{T}(n_in) for _ in 1:n_out])
+
+function (l::Layer{T})(x::Vector{Value{T}}) where T <: Real
+    [n(x) for n in l.neurons]
+end
+# ~\~ end
+# ~\~ begin <<README.md|layer>>[1]
+function parameters(l :: Layer{T}) where T
+    vcat(parameters.(l.neurons)...)
+end
+# ~\~ end
+# ~\~ begin <<README.md|mlp>>[init]
+struct MLP{T}
+    layers :: Vector{Layer{T}}
+end
+
+pairs(it) = zip(it[1:end-1], it[2:end])
+
+MLP{T}(n_in::Int, n_out::Vector{Int}) where T <: Real =
+    MLP{T}([Layer{T}(s...) for s in pairs([n_in; n_out])])
+
+function (mlp::MLP{T})(x::Vector{Value{T}}) where T <: Real
+    for l in mlp.layers
+        x = l(x)
+    end
+    x
+end
+
+function (mlp::MLP{T})(x::Vector{T}) where T <: Real
+    mlp(literal.(x))
+end
+
+function errsqr_loss(y_ref, y)
+    sum((y_ref .- y).^2)
+end
+# ~\~ end
+# ~\~ begin <<README.md|mlp>>[1]
+function parameters(mlp :: MLP{T}) where T
+    vcat(parameters.(mlp.layers)...)
+end
+# ~\~ end
+
+end
 # ~\~ end
