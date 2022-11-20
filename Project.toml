@@ -1,5 +1,9 @@
+name = "MicroGrad"
+uuid = "3e113e41-d000-4454-96ac-a2e4b7790cc9"
+authors = ["Johan Hidding <j.hidding@esciencecenter.nl>"]
+version = "0.1.0"
+
 [deps]
-DaemonMode = "d749ddd5-2b29-4920-8305-6ff5a704e36e"
+GraphvizDotLang = "6039e64d-d8b8-4c93-8e43-7efd2f757352"
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
-PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"

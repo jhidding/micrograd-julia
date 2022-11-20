@@ -2,12 +2,9 @@
 # ~\~ begin <<README.md|src/MicroGrad.jl>>[init]
 module MicroGrad
 
-# ~\~ begin <<README.md|imports>>[init]
+using GraphvizDotLang: digraph, node, edge, attr
 using Printf: @sprintf
-include("Graphviz.jl")
-using .Graphviz: Graph, digraph, add_node, add_edge, add_attr
-# using MLStyle: @match
-# ~\~ end
+using MLStyle: @match
 
 # ~\~ begin <<README.md|value>>[init]
 mutable struct Value{T}
@@ -122,11 +119,10 @@ end
 # ~\~ end
 # ~\~ begin <<README.md|backpropagate>>[2]
 function derive(expr :: Expr)
-    (x, _) -> 2 * x
-    #    @match expr begin
-#        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
-#        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
-#    end
+    @match expr begin
+        Expr(:call, :^, :x, n) => (x, _) -> n * x^(n-1)
+        Expr(expr_type, _...)  => error("Unknown expression $(expr) of type $(expr_type)")
+    end
 end
 # ~\~ end
 # ~\~ begin <<README.md|visualize>>[init]
@@ -136,14 +132,14 @@ function visualize(v::Value{T}) where T
         objid = repr(hash(n))
         objlabel = (isnothing(n.label) ? "" : n.label)
         reclabel = @sprintf "{ %s | data: %0.2f | grad: %0.2f }"  objlabel n.value n.grad
-        g |> add_node("dat_" * objid; shape="record", label=reclabel)
+        g |> node("dat_" * objid; shape="record", label=reclabel)
         if (n.operator !== :const)
-            g |> add_node("op_" * objid; label=String(n.operator)) |>
-                 add_edge("op_" * objid, "dat_" * objid)
+            g |> node("op_" * objid; label="$(n.operator)") |>
+                 edge("op_" * objid, "dat_$objid")
         end
         for c in n.children
             childid = repr(hash(c))
-            g |> add_edge("dat_" * childid, (n.operator !== :const ? "op_" : "dat_") * objid)
+            g |> edge("dat_$childid", (n.operator !== :const ? "op_" : "dat_") * objid)
         end
     end
     g
@@ -215,6 +211,35 @@ end
 # ~\~ begin <<README.md|mlp>>[1]
 function parameters(mlp :: MLP{T}) where T
     vcat(parameters.(mlp.layers)...)
+end
+# ~\~ end
+# ~\~ begin <<README.md|learn>>[init]
+function stop_after_n(n)
+    function (i, _, loss)
+        i % 10 == 0 && println("$(i:4) $(loss)")
+        i >= n
+    end
+end
+
+function learn(nn, xs, y_reference; lossfunc=errsqr_loss, stop=stop_after_n(100), step=0.05)
+    ps = parameters(nn)
+    println("Network with $(length(ps)) free parameters.")
+    i = 0
+    prev = Inf
+    while true
+        y_prediction = [nn(literal.(x))[1] for x in xs]
+        loss = lossfunc(y_prediction, y_reference)
+        if stop(i, prev, loss.value)
+            break
+        end
+        prev = loss.value
+        backpropagate(loss)
+        for p in ps
+            p.value -= p.grad * step
+            p.grad = 0
+        end
+        i += 1
+    end
 end
 # ~\~ end
 

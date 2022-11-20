@@ -161,6 +161,12 @@ header {
         margin: 0 20pt 0 20pt;
 }
 
+.output {
+        background: #eee;
+        padding: 10pt;
+        margin: 0 20pt 0 20pt;
+}
+
 .named-code-block p {
         color: white;
         font-weight: bold;
